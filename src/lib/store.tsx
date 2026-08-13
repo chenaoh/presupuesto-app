@@ -35,6 +35,7 @@ import type {
   Category,
   CategoryKind,
   Debt,
+  PaymentMethod,
   Profile,
   SavingsGoal,
   ThemeMode,
@@ -67,6 +68,7 @@ type CreateTransactionInput = {
   /** Espacio al que corresponde el movimiento (personal o familiar). */
   targetWorkspaceId?: string;
   recurring?: boolean;
+  paymentMethod?: PaymentMethod;
 };
 
 type AppContextValue = {
@@ -1020,6 +1022,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         debtId: input.debtId,
         savingsGoalId: input.savingsGoalId,
         recurring: Boolean(input.recurring),
+        paymentMethod: input.paymentMethod,
         createdBy: user.id,
         createdAt: new Date().toISOString(),
       };
@@ -1054,6 +1057,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           debt_id: tx.debtId ?? null,
           savings_goal_id: tx.savingsGoalId ?? null,
           recurring: Boolean(tx.recurring),
+          payment_method: tx.paymentMethod ?? null,
           created_by: tx.createdBy,
           created_at: tx.createdAt,
         });
@@ -1144,6 +1148,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         debtId: input.debtId,
         savingsGoalId: input.savingsGoalId,
         recurring: Boolean(input.recurring),
+        paymentMethod: input.paymentMethod,
       };
 
       persist((prev) => {
@@ -1183,6 +1188,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             debt_id: next.debtId ?? null,
             savings_goal_id: next.savingsGoalId ?? null,
             recurring: Boolean(next.recurring),
+            payment_method: next.paymentMethod ?? null,
           })
           .eq("id", id),
       );
@@ -1263,6 +1269,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         savingsGoalId: original.savingsGoalId,
         targetWorkspaceId: original.workspaceId,
         recurring: original.recurring ?? true,
+        paymentMethod: original.paymentMethod,
       });
     },
     [addTransaction, data.transactions, user],

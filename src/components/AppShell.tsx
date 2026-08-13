@@ -16,6 +16,7 @@ import {
   X,
   Plus,
   MoreHorizontal,
+  Lightbulb,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -32,6 +33,7 @@ const links = [
   { href: "/budgets", label: "Presupuestos", icon: PiggyBank },
   { href: "/debts", label: "Deudas", icon: Landmark },
   { href: "/savings", label: "Ahorros", icon: Target },
+  { href: "/consejos", label: "Consejos", icon: Lightbulb },
   { href: "/workspaces", label: "Espacios", icon: Users },
   { href: "/settings", label: "Perfil", icon: Settings },
 ];

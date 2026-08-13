@@ -18,6 +18,14 @@ export type TransactionType =
   | "savings_contribution"
   | "savings_withdrawal";
 
+export type PaymentMethod =
+  | "efectivo"
+  | "datafono"
+  | "transferencia"
+  | "pse"
+  | "debito_automatico"
+  | "otro";
+
 export interface Profile {
   id: string;
   email: string;
@@ -133,6 +141,8 @@ export interface Transaction {
   savingsGoalId?: string;
   /** Si es true, aparece fácil de repetir (arriendo, Netflix, etc.). */
   recurring?: boolean;
+  /** Cómo se pagó (opcional). */
+  paymentMethod?: PaymentMethod;
   createdBy: string;
   createdAt: string;
 }

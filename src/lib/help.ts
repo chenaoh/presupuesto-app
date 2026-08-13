@@ -8,35 +8,46 @@ export type HelpTopic = {
 const HELP_BY_PATH: Record<string, HelpTopic> = {
   "/dashboard": {
     title: "Inicio",
-    summary: "Resumen del espacio activo: gastos, ingresos y cómo vas en el mes.",
+    summary: "Resumen del espacio y periodo activos: saldo, gastos, consejo y actividad.",
     steps: [
-      "Elige el espacio (personal o familiar) en el selector de arriba.",
-      "Revisa totales y gráficos del periodo actual.",
-      "Usa el menú inferior o lateral para ir a movimientos, cuentas u otras secciones.",
+      "Elige el espacio (personal o familiar) arriba.",
+      "Ajusta el periodo: este mes, mes anterior o un rango.",
+      "Revisa el consejo destacado y entra a Consejos para ver más.",
+      "Los gráficos y la actividad usan solo el periodo seleccionado.",
     ],
-    tip: "Los números dependen del espacio seleccionado y de los movimientos que hayas registrado.",
+    tip: "Si dejas “Este mes”, al cambiar el mes la información se actualiza sola.",
   },
   "/transactions": {
     title: "Movimientos",
-    summary: "Registra ingresos, gastos, transferencias, pagos de deuda y aportes a ahorro.",
+    summary: "Registra ingresos, gastos, transferencias y sigue el flujo del dinero por periodo.",
     steps: [
-      "Antes necesitas al menos una cuenta en Cuentas.",
-      "Pulsa + Nuevo y elige el tipo de movimiento.",
-      "Indica monto, fecha, cuenta y (si aplica) categoría, deuda o meta.",
-      "Puedes marcar un movimiento como recurrente y repetirlo después.",
+      "Elige el periodo: este mes, mes anterior o un rango de fechas.",
+      "Filtra por categoría o por cuenta para ver el flujo de una cuenta.",
+      "En transferencias verás De cuenta A → cuenta B.",
+      "Puedes indicar método de pago (efectivo, datáfono, transferencia…).",
       "Solo puedes editar o borrar los movimientos que creaste tú.",
     ],
-    tip: "Puedes asignar un gasto al espacio personal o a uno familiar sin cambiar de pantalla.",
+    tip: "Fiducuenta → Ahorros se registra como Transferencia, no como gasto.",
   },
   "/accounts": {
     title: "Cuentas",
     summary: "Aquí viven tus cuentas bancarias, efectivo o billeteras del espacio activo.",
     steps: [
-      "Primero gestiona instituciones (bancos, billeteras, etc.) con el botón Instituciones.",
+      "Primero gestiona instituciones con el botón Instituciones.",
       "Luego crea una cuenta eligiendo institución, tipo y saldo inicial.",
+      "Toca una cuenta o el ícono de historial para ver su flujo en el periodo.",
       "Activa Gestionar para editar, archivar o eliminar cuentas.",
     ],
     tip: "Sin cuentas no podrás registrar movimientos, pagos de deuda ni aportes de ahorro.",
+  },
+  "/consejos": {
+    title: "Consejos",
+    summary: "Tips financieros según tus tendencias de gasto del espacio y periodo activos.",
+    steps: [
+      "Revisa el consejo destacado también en Inicio.",
+      "Cambia el periodo para ver tips del mes actual, anterior o un rango.",
+      "Los consejos usan presupuestos, categorías y comparación con el periodo previo.",
+    ],
   },
   "/categories": {
     title: "Categorías",

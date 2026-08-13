@@ -57,10 +57,14 @@ function AccentSync({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+import { PeriodProvider } from "@/lib/period";
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-      <AccentSync>{children}</AccentSync>
+      <PeriodProvider>
+        <AccentSync>{children}</AccentSync>
+      </PeriodProvider>
     </NextThemesProvider>
   );
 }

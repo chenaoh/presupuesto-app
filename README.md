@@ -27,6 +27,7 @@ Para que una persona se una a tu espacio familiar desde la app desplegada:
    - [`supabase/migrations/001_initial.sql`](supabase/migrations/001_initial.sql)
    - [`supabase/migrations/002_invites_and_auth.sql`](supabase/migrations/002_invites_and_auth.sql)
    - [`supabase/migrations/003_avatar.sql`](supabase/migrations/003_avatar.sql)
+   - [`supabase/migrations/004_payment_method.sql`](supabase/migrations/004_payment_method.sql)
 3. En **Authentication → Providers → Email**, para pruebas rápidas puedes desactivar **Confirm email**.
 4. Copia URL y anon key a `.env.local` (ver `.env.example`).
 5. En Vercel → Project → Settings → Environment Variables, agrega las mismas:

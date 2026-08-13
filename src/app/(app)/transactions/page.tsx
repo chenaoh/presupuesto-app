@@ -5,9 +5,13 @@ import { Download, Pencil, Repeat2, Trash2 } from "lucide-react";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { PeriodPicker } from "@/components/PeriodPicker";
 import { accountColor, TYPE_COLORS } from "@/lib/colors";
 import { downloadCsv } from "@/lib/csv";
 import { formatDate, formatMoney } from "@/lib/format";
+import { filterTxs } from "@/lib/insights";
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, type PaymentMethod } from "@/lib/payment";
+import { usePeriod } from "@/lib/period";
 import { useApp } from "@/lib/store";
 import { useRequireAccounts } from "@/lib/useRequireAccounts";
 import type { Transaction, TransactionType } from "@/lib/types";
@@ -48,10 +52,12 @@ export default function TransactionsPage() {
   const [debtId, setDebtId] = useState("");
   const [savingsGoalId, setSavingsGoalId] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "recurring" | TransactionType>("all");
   const [filterCategoryId, setFilterCategoryId] = useState("");
+  const [filterAccountId, setFilterAccountId] = useState("");
   const [repeatId, setRepeatId] = useState<string | null>(null);
   const [repeatDate, setRepeatDate] = useState(new Date().toISOString().slice(0, 10));
   const [formOpen, setFormOpen] = useState(false);
@@ -60,6 +66,7 @@ export default function TransactionsPage() {
   const { guard, dialog } = useRequireAccounts(
     "Para registrar un movimiento primero debes crear al menos una cuenta.",
   );
+  const { range, label: periodLabelText } = usePeriod();
 
   const categories = useMemo(() => {
     if (type === "income") return allCategories("income");
@@ -71,8 +78,15 @@ export default function TransactionsPage() {
   const debts = allDebts();
   const goals = allGoals();
   const filterCategories = useMemo(() => allCategories(), [allCategories]);
-  const txs = allTransactions().filter((t) => {
+  const txs = filterTxs(allTransactions(), range).filter((t) => {
     if (filterCategoryId && t.categoryId !== filterCategoryId) return false;
+    if (
+      filterAccountId &&
+      t.accountId !== filterAccountId &&
+      t.toAccountId !== filterAccountId
+    ) {
+      return false;
+    }
     if (filter === "all") return true;
     if (filter === "recurring") return Boolean(t.recurring);
     return t.type === filter;
@@ -88,6 +102,7 @@ export default function TransactionsPage() {
     setDebtId("");
     setSavingsGoalId("");
     setRecurring(false);
+    setPaymentMethod("");
     setEditingId(null);
     setError(null);
     setType("expense");
@@ -123,6 +138,7 @@ export default function TransactionsPage() {
     setDebtId(tx.debtId ?? "");
     setSavingsGoalId(tx.savingsGoalId ?? "");
     setRecurring(Boolean(tx.recurring));
+    setPaymentMethod(tx.paymentMethod ?? "");
     setError(null);
     setFormOpen(true);
   }
@@ -153,6 +169,7 @@ export default function TransactionsPage() {
       savingsGoalId: savingsGoalId || undefined,
       targetWorkspaceId,
       recurring,
+      paymentMethod: paymentMethod || undefined,
     };
 
     const err = editingId ? updateTransaction(editingId, payload) : addTransaction(payload);
@@ -183,13 +200,19 @@ export default function TransactionsPage() {
   }
 
   function exportExpensesCsv() {
-    const expenses = allTransactions()
+    const expenses = filterTxs(allTransactions(), range)
       .filter((t) => t.type === "expense")
       .filter((t) => !filterCategoryId || t.categoryId === filterCategoryId)
+      .filter(
+        (t) =>
+          !filterAccountId ||
+          t.accountId === filterAccountId ||
+          t.toAccountId === filterAccountId,
+      )
       .sort((a, b) => b.date.localeCompare(a.date));
 
     if (expenses.length === 0) {
-      setError("No hay gastos para exportar.");
+      setError("No hay gastos para exportar en este periodo.");
       setMessage(null);
       return;
     }
@@ -206,6 +229,7 @@ export default function TransactionsPage() {
         cat ? itemLabel(cat.workspaceId, cat.name) : "",
         account ? itemLabel(account.workspaceId, account.name) : "",
         workspaceLabel(tx.workspaceId),
+        tx.paymentMethod ? PAYMENT_METHOD_LABELS[tx.paymentMethod] : "",
         tx.amount,
         tx.note || "",
         tx.recurring ? "sí" : "no",
@@ -213,7 +237,11 @@ export default function TransactionsPage() {
     });
 
     const stamp = new Date().toISOString().slice(0, 10);
-    downloadCsv(`gastos-${stamp}.csv`, ["Fecha", "Categoría", "Cuenta", "Espacio", "Monto", "Nota", "Recurrente"], rows);
+    downloadCsv(
+      `gastos-${stamp}.csv`,
+      ["Fecha", "Categoría", "Cuenta", "Espacio", "Método", "Monto", "Nota", "Recurrente"],
+      rows,
+    );
     setError(null);
     setMessage(`CSV exportado (${expenses.length} gasto${expenses.length === 1 ? "" : "s"}).`);
   }
@@ -257,14 +285,25 @@ export default function TransactionsPage() {
 
   function txSubtitle(tx: Transaction) {
     const typeLabel = TYPES.find((t) => t.value === tx.type)?.label ?? tx.type;
-    const account = tx.accountId
+    const from = tx.accountId
       ? data.accounts.find((a) => a.id === tx.accountId)
       : undefined;
+    const to = tx.toAccountId
+      ? data.accounts.find((a) => a.id === tx.toAccountId)
+      : undefined;
+    let accountPart: string | null = null;
+    if (tx.type === "transfer" && from && to) {
+      accountPart = `De ${itemLabel(from.workspaceId, from.name)} → ${itemLabel(to.workspaceId, to.name)}`;
+    } else if (from) {
+      accountPart = `Cuenta: ${itemLabel(from.workspaceId, from.name)}`;
+    }
+    const method = tx.paymentMethod ? PAYMENT_METHOD_LABELS[tx.paymentMethod] : null;
     const parts = [
       formatDate(tx.date),
       typeLabel,
       workspaceLabel(tx.workspaceId),
-      account ? itemLabel(account.workspaceId, account.name) : null,
+      accountPart,
+      method,
       tx.note || null,
     ];
     return parts.filter(Boolean).join(" · ");
@@ -274,13 +313,18 @@ export default function TransactionsPage() {
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl">Movimientos</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Movimientos</h1>
           <p className="muted mt-0.5 text-sm">
-            Edita o elimina solo los que creaste. Colores por categoría/cuenta.
+            Flujo del dinero del periodo. Edita o elimina solo los que creaste.
           </p>
         </div>
         <ManageToggle active={managing} onChange={setManaging} />
       </div>
+
+      <section className="card space-y-2 p-3">
+        <PeriodPicker compact />
+        <p className="muted text-[11px] capitalize">{periodLabelText}</p>
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-primary text-sm" onClick={openCreate}>
@@ -324,6 +368,21 @@ export default function TransactionsPage() {
         }))}
       />
 
+      <ColorCombo
+        label="Filtrar por cuenta (flujo)"
+        value={filterAccountId}
+        onChange={setFilterAccountId}
+        placeholder="Todas las cuentas"
+        options={accounts.map((a) => ({
+          value: a.id,
+          label: itemLabel(a.workspaceId, a.name),
+          color: accountColor(a.accountType),
+        }))}
+      />
+
+      {txs.length === 0 ? (
+        <p className="muted text-sm">Sin movimientos en este periodo con los filtros actuales.</p>
+      ) : null}
       <div className="card overflow-hidden">
         {txs.length === 0 && <p className="muted p-3 text-sm">Sin movimientos.</p>}
         <ul className="divide-y divide-border">
@@ -552,6 +611,24 @@ export default function TransactionsPage() {
                       : TYPE_COLORS.savings_withdrawal,
                 }))}
               />
+            </div>
+          )}
+
+          {(type === "expense" || type === "income" || type === "debt_payment") && (
+            <div className="sm:col-span-2">
+              <label className="label">Método de pago (opcional)</label>
+              <select
+                className="select"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | "")}
+              >
+                <option value="">Sin especificar</option>
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {PAYMENT_METHOD_LABELS[m]}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

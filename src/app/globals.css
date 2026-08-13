@@ -102,6 +102,15 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.tip-card {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--accent) 8%, var(--bg-elevated)),
+      var(--bg-elevated)
+    );
+}
+
 .balance-hero {
   border: 1px solid color-mix(in oklab, var(--accent) 12%, var(--border));
 }

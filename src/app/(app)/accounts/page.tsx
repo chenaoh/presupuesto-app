@@ -1,11 +1,14 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { Building2, Pencil, Trash2, Archive } from "lucide-react";
+import { FormEvent, useMemo, useState } from "react";
+import { Building2, Pencil, Trash2, Archive, History } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { PeriodPicker } from "@/components/PeriodPicker";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/constants";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
+import { filterTxs } from "@/lib/insights";
+import { usePeriod } from "@/lib/period";
 import { useApp } from "@/lib/store";
 import type { Account, AccountType, Institution } from "@/lib/types";
 
@@ -24,7 +27,9 @@ export default function AccountsPage() {
     archiveAccount,
     deleteAccount,
     itemLabel,
+    workspaceTransactions,
   } = useApp();
+  const { range, label: periodLabelText } = usePeriod();
 
   const institutions = data.institutions.filter((i) => i.workspaceId === workspace?.id);
   const [name, setName] = useState("");
@@ -36,11 +41,21 @@ export default function AccountsPage() {
   const [instOpen, setInstOpen] = useState(false);
   const [instName, setInstName] = useState("");
   const [editingInst, setEditingInst] = useState<Institution | null>(null);
+  const [historyAccount, setHistoryAccount] = useState<Account | null>(null);
   const [managing, setManaging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
   const accounts = workspaceAccounts();
   const hasInstitutions = institutions.length > 0;
+
+  const historyTxs = useMemo(() => {
+    if (!historyAccount) return [];
+    return filterTxs(workspaceTransactions(), range)
+      .filter(
+        (t) => t.accountId === historyAccount.id || t.toAccountId === historyAccount.id,
+      )
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [historyAccount, range, workspaceTransactions]);
 
   function closeForm() {
     setFormOpen(false);
@@ -185,6 +200,14 @@ export default function AccountsPage() {
         </button>
       </div>
 
+      <section className="card space-y-2 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide muted">
+          Periodo del historial
+        </p>
+        <PeriodPicker compact />
+        <p className="muted text-[11px] capitalize">{periodLabelText}</p>
+      </section>
+
       {!hasInstitutions && (
         <p className="rounded-md border border-border px-3 py-2 text-sm">
           Aún no hay instituciones en este espacio. Créalas con el botón{" "}
@@ -203,17 +226,30 @@ export default function AccountsPage() {
               const institution = institutions.find((i) => i.id === account.institutionId);
               return (
                 <li key={account.id} className="flex items-center gap-2 px-3 py-2">
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => setHistoryAccount(account)}
+                  >
                     <p className="truncate text-sm font-medium">
                       {itemLabel(account.workspaceId, account.name)}
                     </p>
                     <p className="muted truncate text-[11px]">
-                      {institution?.name} · {ACCOUNT_TYPE_LABELS[account.accountType]}
+                      {institution?.name} · {ACCOUNT_TYPE_LABELS[account.accountType]} · Ver flujo
                     </p>
-                  </div>
+                  </button>
                   <p className="shrink-0 text-sm font-semibold tabular-nums">
                     {formatMoney(accountBalance(account.id), currency)}
                   </p>
+                  <button
+                    type="button"
+                    className="rounded-md border border-border p-1.5"
+                    onClick={() => setHistoryAccount(account)}
+                    aria-label="Historial"
+                    title="Historial del periodo"
+                  >
+                    <History size={13} />
+                  </button>
                   {managing && (
                     <div className="flex shrink-0 gap-1">
                       <button
@@ -364,6 +400,68 @@ export default function AccountsPage() {
                 </button>
               </li>
             ))}
+          </ul>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!historyAccount}
+        onClose={() => setHistoryAccount(null)}
+        title={
+          historyAccount
+            ? `Flujo · ${itemLabel(historyAccount.workspaceId, historyAccount.name)}`
+            : "Flujo"
+        }
+      >
+        <p className="muted mb-3 text-xs capitalize">{periodLabelText}</p>
+        {historyTxs.length === 0 ? (
+          <p className="muted text-sm">Sin movimientos de esta cuenta en el periodo.</p>
+        ) : (
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {historyTxs.map((t) => {
+              const from = t.accountId
+                ? data.accounts.find((a) => a.id === t.accountId)
+                : undefined;
+              const to = t.toAccountId
+                ? data.accounts.find((a) => a.id === t.toAccountId)
+                : undefined;
+              const leaving =
+                t.type === "transfer"
+                  ? t.accountId === historyAccount?.id
+                  : t.type === "income" || t.type === "savings_withdrawal"
+                    ? false
+                    : t.accountId === historyAccount?.id;
+              const entering =
+                t.type === "transfer"
+                  ? t.toAccountId === historyAccount?.id
+                  : t.type === "income" || t.type === "savings_withdrawal"
+                    ? t.accountId === historyAccount?.id
+                    : false;
+              let flowLabel = String(t.type);
+              if (t.type === "transfer" && from && to) {
+                flowLabel = `De ${from.name} → ${to.name}`;
+              } else if (leaving) flowLabel = "Salida";
+              else if (entering) flowLabel = "Entrada";
+              return (
+                <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{flowLabel}</p>
+                    <p className="muted text-[11px]">
+                      {formatDate(t.date)}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </p>
+                  </div>
+                  <p
+                    className={`shrink-0 font-semibold tabular-nums ${
+                      entering ? "text-income" : leaving ? "text-expense" : ""
+                    }`}
+                  >
+                    {entering ? "+" : leaving ? "-" : ""}
+                    {formatMoney(t.amount, currency)}
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Modal>

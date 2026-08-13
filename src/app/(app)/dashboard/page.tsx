@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Lightbulb } from "lucide-react";
 import {
   Cell,
   Pie,
@@ -9,8 +9,11 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { PeriodPicker } from "@/components/PeriodPicker";
 import { UserAvatar } from "@/components/UserAvatar";
-import { currentPeriod, formatMoney, inPeriod, monthLabel } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { buildTips, filterTxs } from "@/lib/insights";
+import { rangeAnchorMonth, usePeriod } from "@/lib/period";
 import { useApp } from "@/lib/store";
 
 export default function DashboardPage() {
@@ -25,14 +28,17 @@ export default function DashboardPage() {
     workspaceCategories,
     itemLabel,
   } = useApp();
+  const { range, compareRange, label } = usePeriod();
 
-  const { year, month } = currentPeriod();
   const currency = user?.currency ?? "COP";
-  const txs = workspaceTransactions().filter((t) => inPeriod(t.date, year, month));
+  const allWsTxs = workspaceTransactions();
+  const txs = filterTxs(allWsTxs, range);
+  const compareTxs = filterTxs(allWsTxs, compareRange);
   const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   const accountsTotal = workspaceAccounts().reduce((s, a) => s + accountBalance(a.id), 0);
   const categories = workspaceCategories("expense");
+  const { year, month } = rangeAnchorMonth(range);
   const budgets = workspaceBudgets(year, month);
 
   const byCategory = categories
@@ -47,8 +53,25 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value);
 
   const totalCat = byCategory.reduce((s, c) => s + c.value, 0) || 1;
-  const recent = workspaceTransactions().slice(0, 5);
+  const recent = [...txs]
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5);
 
+  const tips = buildTips({
+    currency,
+    range,
+    compareRange,
+    transactions: txs,
+    compareTransactions: compareTxs,
+    categories: workspaceCategories(),
+    budgets,
+    spentInCategory: (categoryId) =>
+      txs
+        .filter((t) => t.type === "expense" && t.categoryId === categoryId)
+        .reduce((s, t) => s + t.amount, 0),
+    workspaceName: workspace?.name,
+  });
+  const topTip = tips[0];
   const firstName = user?.displayName?.split(/\s+/)[0] || "tú";
 
   return (
@@ -57,14 +80,39 @@ export default function DashboardPage() {
         <div>
           <p className="muted text-sm">Hola,</p>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{firstName}</h1>
-          <p className="muted mt-0.5 text-xs capitalize">
-            {monthLabel(year, month)} · {workspace?.name}
-          </p>
+          <p className="muted mt-0.5 text-xs capitalize">{workspace?.name}</p>
         </div>
         <Link href="/settings" aria-label="Perfil">
           <UserAvatar src={user?.avatarData} name={user?.displayName} size={48} />
         </Link>
       </div>
+
+      <section className="card space-y-2 p-3 sm:p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide muted">Periodo</p>
+        <PeriodPicker compact />
+        <p className="muted text-[11px] capitalize">{label}</p>
+      </section>
+
+      {topTip && (
+        <section className="card tip-card space-y-2 p-4">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,var(--accent)_16%,white)] text-accent">
+              <Lightbulb size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold uppercase tracking-wide text-accent">Consejo</p>
+              <p className="mt-0.5 text-sm font-bold">{topTip.title}</p>
+              <p className="muted mt-1 text-xs leading-relaxed">{topTip.body}</p>
+              <Link
+                href="/consejos"
+                className="mt-2 inline-block text-xs font-bold uppercase tracking-wide text-accent"
+              >
+                Ver más consejos →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="card balance-hero p-4 sm:p-5">
         <p className="muted text-xs font-semibold uppercase tracking-wide">Saldo total</p>
@@ -77,7 +125,7 @@ export default function DashboardPage() {
               <ArrowDownLeft size={16} />
             </span>
             <div>
-              <p className="muted text-[11px]">Ingresos</p>
+              <p className="muted text-[11px]">Ingresos del periodo</p>
               <p className="text-sm font-bold text-income">{formatMoney(income, currency)}</p>
             </div>
           </div>
@@ -86,7 +134,7 @@ export default function DashboardPage() {
               <ArrowUpRight size={16} />
             </span>
             <div>
-              <p className="muted text-[11px]">Gastos</p>
+              <p className="muted text-[11px]">Gastos del periodo</p>
               <p className="text-sm font-bold text-expense">{formatMoney(expense, currency)}</p>
             </div>
           </div>
@@ -101,7 +149,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         {byCategory.length === 0 ? (
-          <p className="muted text-sm">Aún no hay gastos este mes.</p>
+          <p className="muted text-sm">Aún no hay gastos en este periodo.</p>
         ) : (
           <>
             <div className="mx-auto h-48 w-full max-w-[240px]">
@@ -120,27 +168,12 @@ export default function DashboardPage() {
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => formatMoney(Number(value ?? 0), currency)} />
-                  <text
-                    x="50%"
-                    y="48%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="fill-[var(--muted)] text-[11px]"
-                  >
-                    Total
-                  </text>
-                  <text
-                    x="50%"
-                    y="58%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="fill-[var(--fg)] text-sm font-bold"
-                  >
-                    {formatMoney(expense, currency)}
-                  </text>
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            <p className="mb-2 text-center text-sm font-bold">
+              Total {formatMoney(expense, currency)}
+            </p>
             <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
               {byCategory.slice(0, 6).map((c) => (
                 <li key={c.name} className="flex items-center gap-2 text-xs">
@@ -202,14 +235,14 @@ export default function DashboardPage() {
 
       <section className="space-y-2">
         <div className="flex items-center justify-between px-0.5">
-          <h2 className="text-lg font-bold">Actividad reciente</h2>
+          <h2 className="text-lg font-bold">Actividad del periodo</h2>
           <Link href="/transactions" className="text-xs font-bold uppercase tracking-wide text-accent">
             Ver todo
           </Link>
         </div>
         {recent.length === 0 ? (
           <div className="card p-4">
-            <p className="muted text-sm">Sin movimientos todavía.</p>
+            <p className="muted text-sm">Sin movimientos en este periodo.</p>
           </div>
         ) : (
           <ul className="space-y-2">
