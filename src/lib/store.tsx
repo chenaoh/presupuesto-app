@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { STORAGE_KEY } from "./constants";
-import { currentPeriod, hashPassword, inPeriod, uid } from "./format";
+import { currentPeriod, hashPassword, inPeriod, todayIso, uid } from "./format";
 import { seedCategories, seedInstitutions } from "./seeds";
 import {
   cloudAcceptInvite,
@@ -1022,7 +1022,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         workspaceId: targetId,
         type: input.type,
         amount: Math.round(input.amount),
-        date: input.date || new Date().toISOString().slice(0, 10),
+        date: input.date || todayIso(),
         note: input.note?.trim() || "",
         categoryId: input.categoryId,
         accountId: input.accountId,
@@ -1271,7 +1271,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return addTransaction({
         type: original.type,
         amount,
-        date: overrides?.date || new Date().toISOString().slice(0, 10),
+        date: overrides?.date || todayIso(),
         note: overrides?.note !== undefined ? overrides.note : original.note,
         categoryId: original.categoryId,
         accountId: original.accountId,

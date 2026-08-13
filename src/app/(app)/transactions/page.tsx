@@ -8,7 +8,7 @@ import { Modal } from "@/components/Modal";
 import { PeriodPicker } from "@/components/PeriodPicker";
 import { accountColor, TYPE_COLORS } from "@/lib/colors";
 import { downloadCsv } from "@/lib/csv";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, todayIso } from "@/lib/format";
 import { filterTxs } from "@/lib/insights";
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, type PaymentMethod } from "@/lib/payment";
 import { usePeriod } from "@/lib/period";
@@ -45,7 +45,7 @@ export default function TransactionsPage() {
 
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayIso());
   const [note, setNote] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -60,7 +60,7 @@ export default function TransactionsPage() {
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterAccountId, setFilterAccountId] = useState("");
   const [repeatId, setRepeatId] = useState<string | null>(null);
-  const [repeatDate, setRepeatDate] = useState(new Date().toISOString().slice(0, 10));
+  const [repeatDate, setRepeatDate] = useState(todayIso());
   const [repeatAmount, setRepeatAmount] = useState("");
   const [repeatNote, setRepeatNote] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -110,7 +110,7 @@ export default function TransactionsPage() {
     setEditingId(null);
     setError(null);
     setType("expense");
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(todayIso());
   }
 
   function openCreate() {
@@ -188,7 +188,7 @@ export default function TransactionsPage() {
 
   function openRepeat(tx: Transaction) {
     setRepeatId(tx.id);
-    setRepeatDate(new Date().toISOString().slice(0, 10));
+    setRepeatDate(todayIso());
     setRepeatAmount(String(tx.amount));
     setRepeatNote(tx.note ?? "");
     setError(null);

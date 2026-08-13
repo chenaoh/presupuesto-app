@@ -6,12 +6,25 @@ export function formatMoney(amount: number, currency = "COP", locale = "es-CO") 
   }).format(amount);
 }
 
+/** Parsea YYYY-MM-DD (o ISO) como fecha de calendario local, sin desfase UTC. */
+export function parseLocalDate(iso: string): Date {
+  const datePart = iso.slice(0, 10);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(iso);
+}
+
 export function formatDate(iso: string, locale = "es-CO") {
   return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(iso));
+  }).format(parseLocalDate(iso));
 }
 
 export function monthLabel(year: number, month: number, locale = "es-CO") {
@@ -142,7 +155,15 @@ export function currentPeriod(date = new Date()) {
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
+/** Hoy en YYYY-MM-DD según el calendario local (no UTC). */
+export function todayIso(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function inPeriod(isoDate: string, year: number, month: number) {
-  const d = new Date(isoDate);
+  const d = parseLocalDate(isoDate);
   return d.getFullYear() === year && d.getMonth() + 1 === month;
 }
