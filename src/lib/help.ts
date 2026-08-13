@@ -22,6 +22,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     summary: "Registra ingresos, gastos, transferencias y sigue el flujo del dinero por periodo.",
     steps: [
       "Elige el periodo: este mes, mes anterior o un rango de fechas.",
+      "Solo ves movimientos del espacio activo (sus categorías, deudas o metas).",
       "En la lista ves descripción, categoría y fecha; toca un movimiento para ver el detalle.",
       "Filtra por categoría o por cuenta para ver el flujo de una cuenta.",
       "Puedes indicar método de pago (efectivo, datáfono, transferencia…).",

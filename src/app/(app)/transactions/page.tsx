@@ -28,16 +28,17 @@ const TYPES: Array<{ value: TransactionType; label: string }> = [
 export default function TransactionsPage() {
   const {
     user,
+    workspace,
     data,
     addTransaction,
     updateTransaction,
     deleteTransaction,
     repeatTransaction,
-    allTransactions,
-    allCategories,
+    workspaceTransactions,
+    workspaceCategories,
     allAccounts,
-    allDebts,
-    allGoals,
+    workspaceDebts,
+    workspaceGoals,
     itemLabel,
     workspaceLabel,
     memberName,
@@ -72,17 +73,27 @@ export default function TransactionsPage() {
   );
   const { range, label: periodLabelText } = usePeriod();
 
+  useEffect(() => {
+    setFilterCategoryId("");
+    setFilterAccountId("");
+    setFilter("all");
+    setDetailTx(null);
+  }, [workspace?.id]);
+
   const categories = useMemo(() => {
-    if (type === "income") return allCategories("income");
-    if (type === "expense") return allCategories("expense");
+    if (type === "income") return workspaceCategories("income");
+    if (type === "expense") return workspaceCategories("expense");
     return [];
-  }, [type, allCategories]);
+  }, [type, workspaceCategories]);
 
   const accounts = allAccounts();
-  const debts = allDebts();
-  const goals = allGoals();
-  const filterCategories = useMemo(() => allCategories(), [allCategories]);
-  const txs = filterTxs(allTransactions(), range).filter((t) => {
+  const debts = workspaceDebts();
+  const goals = workspaceGoals();
+  const filterCategories = useMemo(
+    () => workspaceCategories(),
+    [workspaceCategories],
+  );
+  const txs = filterTxs(workspaceTransactions(), range).filter((t) => {
     if (filterCategoryId && t.categoryId !== filterCategoryId) return false;
     if (
       filterAccountId &&
@@ -159,7 +170,11 @@ export default function TransactionsPage() {
     const goal = goals.find((g) => g.id === savingsGoalId);
     const account = accounts.find((a) => a.id === accountId);
     const targetWorkspaceId =
-      category?.workspaceId || debt?.workspaceId || goal?.workspaceId || account?.workspaceId;
+      category?.workspaceId ||
+      debt?.workspaceId ||
+      goal?.workspaceId ||
+      workspace?.id ||
+      account?.workspaceId;
 
     const payload = {
       type,
@@ -222,7 +237,7 @@ export default function TransactionsPage() {
   }
 
   function exportExpensesCsv() {
-    const expenses = filterTxs(allTransactions(), range)
+    const expenses = filterTxs(workspaceTransactions(), range)
       .filter((t) => t.type === "expense")
       .filter((t) => !filterCategoryId || t.categoryId === filterCategoryId)
       .filter(
@@ -327,7 +342,7 @@ export default function TransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Movimientos</h1>
           <p className="muted mt-0.5 text-sm">
-            Flujo del dinero del periodo. Edita o elimina solo los que creaste.
+            Solo del espacio activo ({workspace?.name ?? "…"}). Edita o elimina los que creaste.
           </p>
         </div>
         <ManageToggle active={managing} onChange={setManaging} />

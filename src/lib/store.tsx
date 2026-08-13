@@ -1680,10 +1680,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [data.accounts, workspace?.id],
   );
 
-  const workspaceTransactions = useCallback(
-    () => data.transactions.filter((t) => t.workspaceId === workspace?.id),
-    [data.transactions, workspace?.id],
-  );
+  const workspaceTransactions = useCallback(() => {
+    if (!workspace) return [];
+    const wsId = workspace.id;
+    const categoryIds = new Set(
+      data.categories.filter((c) => c.workspaceId === wsId).map((c) => c.id),
+    );
+    const debtIds = new Set(
+      data.debts.filter((d) => d.workspaceId === wsId).map((d) => d.id),
+    );
+    const goalIds = new Set(
+      data.savingsGoals.filter((g) => g.workspaceId === wsId).map((g) => g.id),
+    );
+
+    return data.transactions
+      .filter((t) => {
+        if (t.workspaceId !== wsId) return false;
+        // Ingresos/gastos: solo si la categoría es de este espacio
+        if (t.type === "income" || t.type === "expense") {
+          return Boolean(t.categoryId && categoryIds.has(t.categoryId));
+        }
+        if (t.type === "debt_payment") {
+          return Boolean(t.debtId && debtIds.has(t.debtId));
+        }
+        if (t.type === "savings_contribution" || t.type === "savings_withdrawal") {
+          return Boolean(t.savingsGoalId && goalIds.has(t.savingsGoalId));
+        }
+        // Transferencias del espacio activo
+        return true;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }, [data.categories, data.debts, data.savingsGoals, data.transactions, workspace]);
 
   const workspaceBudgets = useCallback(
     (year?: number, month?: number) => {
