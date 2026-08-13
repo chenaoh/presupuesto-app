@@ -12,6 +12,21 @@ import {
 import { STORAGE_KEY } from "./constants";
 import { currentPeriod, hashPassword, inPeriod, uid } from "./format";
 import { seedCategories, seedInstitutions } from "./seeds";
+import {
+  cloudAcceptInvite,
+  cloudCreateInvite,
+  cloudCreateSharedWorkspace,
+  cloudEnabled,
+  cloudLogin,
+  cloudLogout,
+  cloudRegister,
+  cloudUpdateProfile,
+  cloudWrite,
+  loadCloudData,
+  newEntityId,
+  writeActiveWorkspaceId,
+} from "./supabase/cloud";
+import { createClient } from "./supabase/client";
 import type {
   Account,
   AccountType,
@@ -28,6 +43,10 @@ import type {
   Workspace,
 } from "./types";
 import { EMPTY_DATA } from "./types";
+
+function makeId(prefix: string) {
+  return cloudEnabled() ? newEntityId() : uid(prefix);
+}
 
 type RegisterInput = {
   email: string;
@@ -61,9 +80,9 @@ type AppContextValue = {
   logout: () => void;
   setActiveWorkspace: (workspaceId: string) => void;
   updateProfile: (patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor">>) => void;
-  createSharedWorkspace: (name: string) => string | null;
-  createInvite: () => string | null;
-  acceptInvite: (code: string) => string | null;
+  createSharedWorkspace: (name: string) => Promise<string | null>;
+  createInvite: () => Promise<string | null>;
+  acceptInvite: (code: string) => Promise<string | null>;
   addCategory: (name: string, kind: CategoryKind, color?: string) => string | null;
   updateCategory: (
     id: string,
@@ -160,16 +179,78 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setData(loadData());
-    setReady(true);
+    if (!cloudEnabled()) {
+      setData(loadData());
+      setReady(true);
+      return;
+    }
+
+    const sb = createClient();
+    if (!sb) {
+      setReady(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const {
+        data: { session },
+      } = await sb.auth.getSession();
+      if (cancelled) return;
+      if (session?.user) {
+        try {
+          const appData = await loadCloudData(
+            session.user.id,
+            session.user.email ?? "",
+          );
+          if (!cancelled) setData(appData);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      if (!cancelled) setReady(true);
+    })();
+
+    const {
+      data: { subscription },
+    } = sb.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setData(EMPTY_DATA);
+        writeActiveWorkspaceId(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const persist = useCallback((updater: (prev: AppData) => AppData) => {
     setData((prev) => {
       const next = updater(prev);
-      saveData(next);
+      if (cloudEnabled()) {
+        writeActiveWorkspaceId(next.activeWorkspaceId);
+      } else {
+        saveData(next);
+      }
       return next;
     });
+  }, []);
+
+  const refreshCloud = useCallback(async () => {
+    const sb = createClient();
+    if (!sb) return;
+    const {
+      data: { session },
+    } = await sb.auth.getSession();
+    if (!session?.user) return;
+    const appData = await loadCloudData(
+      session.user.id,
+      session.user.email ?? "",
+    );
+    setData(appData);
   }, []);
 
   const user = useMemo(
@@ -197,6 +278,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!normalized || !password || !displayName.trim()) {
         return "Completa todos los campos.";
       }
+
+      if (cloudEnabled()) {
+        const result = await cloudRegister({ email: normalized, password, displayName });
+        if (result.error) return result.error;
+        if (result.data) setData(result.data);
+        return null;
+      }
+
       if (data.profiles.some((p) => p.email === normalized)) {
         return "Ya existe una cuenta con ese correo.";
       }
@@ -257,6 +346,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
+      if (cloudEnabled()) {
+        const result = await cloudLogin(email, password);
+        if (result.error) return result.error;
+        if (result.data) setData(result.data);
+        return null;
+      }
+
       const normalized = email.trim().toLowerCase();
       const passwordHash = await hashPassword(password);
       const profile = data.profiles.find(
@@ -281,6 +377,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    if (cloudEnabled()) {
+      void cloudLogout();
+      setData(EMPTY_DATA);
+      return;
+    }
     persist((prev) => ({ ...prev, sessionUserId: null, activeWorkspaceId: null }));
   }, [persist]);
 
@@ -299,6 +400,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateProfile = useCallback(
     (patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor">>) => {
       if (!user) return;
+      if (cloudEnabled()) void cloudUpdateProfile(user.id, patch);
       persist((prev) => ({
         ...prev,
         profiles: prev.profiles.map((p) => (p.id === user.id ? { ...p, ...patch } : p)),
@@ -308,10 +410,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const createSharedWorkspace = useCallback(
-    (name: string) => {
+    async (name: string) => {
       if (!user) return "Debes iniciar sesión.";
       const trimmed = name.trim();
       if (!trimmed) return "Escribe un nombre para el espacio familiar.";
+
+      if (cloudEnabled()) {
+        const result = await cloudCreateSharedWorkspace(user.id, trimmed);
+        if (result.error) return result.error;
+        await refreshCloud();
+        return null;
+      }
 
       const workspaceId = uid("ws");
       const now = new Date().toISOString();
@@ -346,15 +455,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }));
       return null;
     },
-    [persist, user],
+    [persist, refreshCloud, user],
   );
 
-  const createInvite = useCallback(() => {
+  const createInvite = useCallback(async () => {
     if (!user || !workspace || workspace.type !== "shared") return null;
     const isMember = data.members.some(
       (m) => m.workspaceId === workspace.id && m.userId === user.id,
     );
     if (!isMember) return null;
+
+    if (cloudEnabled()) {
+      const result = await cloudCreateInvite(user.id, workspace.id);
+      if (result.error || !result.code) return null;
+      await refreshCloud();
+      return result.code;
+    }
 
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -372,11 +488,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ],
     }));
     return code;
-  }, [data.members, persist, user, workspace]);
+  }, [data.members, persist, refreshCloud, user, workspace]);
 
   const acceptInvite = useCallback(
-    (code: string) => {
+    async (code: string) => {
       if (!user) return "Debes iniciar sesión.";
+
+      if (cloudEnabled()) {
+        const result = await cloudAcceptInvite(code);
+        if (result.error) return result.error;
+        await refreshCloud();
+        return null;
+      }
+
       const invite = data.invites.find(
         (i) => i.code.toUpperCase() === code.trim().toUpperCase() && !i.usedBy,
       );
@@ -407,7 +531,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }));
       return null;
     },
-    [data.invites, data.members, persist, user],
+    [data.invites, data.members, persist, refreshCloud, user],
   );
 
   const addCategory = useCallback(
@@ -415,12 +539,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!workspace) return "Selecciona un espacio.";
       const trimmed = name.trim();
       if (!trimmed) return "Escribe un nombre.";
+      const id = makeId("cat");
       persist((prev) => ({
         ...prev,
         categories: [
           ...prev.categories,
           {
-            id: uid("cat"),
+            id,
             workspaceId: workspace.id,
             name: trimmed,
             kind,
@@ -431,6 +556,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
           },
         ],
       }));
+      cloudWrite(() =>
+        createClient()!.from("categories").insert({
+          id,
+          workspace_id: workspace.id,
+          name: trimmed,
+          kind,
+          is_system: false,
+          icon: "Tag",
+          color,
+          is_archived: false,
+        }),
+      );
       return null;
     },
     [persist, workspace],
@@ -444,6 +581,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           c.id === id ? { ...c, isArchived: true } : c,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!.from("categories").update({ is_archived: true }).eq("id", id),
+      );
     },
     [persist],
   );
@@ -466,6 +606,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : c,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!
+          .from("categories")
+          .update({
+            ...(name !== undefined ? { name } : {}),
+            ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
+            ...(patch.color !== undefined ? { color: patch.color } : {}),
+          })
+          .eq("id", id),
+      );
       return null;
     },
     [data.categories, persist],
@@ -483,12 +633,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ),
           budgets: prev.budgets.filter((b) => b.categoryId !== id),
         }));
+        cloudWrite(() =>
+          createClient()!.from("categories").update({ is_archived: true }).eq("id", id),
+        );
         return null;
       }
       persist((prev) => ({
         ...prev,
         categories: prev.categories.filter((c) => c.id !== id),
       }));
+      cloudWrite(() => createClient()!.from("categories").delete().eq("id", id));
       return null;
     },
     [data.budgets, data.transactions, persist],
@@ -499,18 +653,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!workspace) return "Selecciona un espacio.";
       const trimmed = name.trim();
       if (!trimmed) return "Escribe un nombre.";
+      const id = makeId("inst");
       persist((prev) => ({
         ...prev,
         institutions: [
           ...prev.institutions,
           {
-            id: uid("inst"),
+            id,
             workspaceId: workspace.id,
             name: trimmed,
             isSystem: false,
           },
         ],
       }));
+      cloudWrite(() =>
+        createClient()!.from("institutions").insert({
+          id,
+          workspace_id: workspace.id,
+          name: trimmed,
+          is_system: false,
+        }),
+      );
       return null;
     },
     [persist, workspace],
@@ -525,22 +688,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }) => {
       if (!workspace) return "Selecciona un espacio.";
       if (!input.name.trim()) return "Escribe un nombre para la cuenta.";
+      const id = makeId("acc");
+      const createdAt = new Date().toISOString();
       persist((prev) => ({
         ...prev,
         accounts: [
           ...prev.accounts,
           {
-            id: uid("acc"),
+            id,
             workspaceId: workspace.id,
             name: input.name.trim(),
             institutionId: input.institutionId,
             accountType: input.accountType,
             initialBalance: input.initialBalance || 0,
             isArchived: false,
-            createdAt: new Date().toISOString(),
+            createdAt,
           },
         ],
       }));
+      cloudWrite(() =>
+        createClient()!.from("accounts").insert({
+          id,
+          workspace_id: workspace.id,
+          name: input.name.trim(),
+          institution_id: input.institutionId,
+          account_type: input.accountType,
+          initial_balance: input.initialBalance || 0,
+          is_archived: false,
+          created_at: createdAt,
+        }),
+      );
       return null;
     },
     [persist, workspace],
@@ -554,6 +731,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           a.id === id ? { ...a, isArchived: true } : a,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!.from("accounts").update({ is_archived: true }).eq("id", id),
+      );
     },
     [persist],
   );
@@ -575,6 +755,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...prev,
         accounts: prev.accounts.filter((a) => a.id !== id),
       }));
+      cloudWrite(() => createClient()!.from("accounts").delete().eq("id", id));
       return null;
     },
     [data.debts, data.savingsGoals, data.transactions, persist],
@@ -600,6 +781,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : a,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!
+          .from("accounts")
+          .update({
+            ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+            ...(patch.institutionId !== undefined
+              ? { institution_id: patch.institutionId }
+              : {}),
+            ...(patch.accountType !== undefined ? { account_type: patch.accountType } : {}),
+            ...(patch.initialBalance !== undefined
+              ? { initial_balance: patch.initialBalance }
+              : {}),
+          })
+          .eq("id", id),
+      );
       return null;
     },
     [data.accounts, persist],
@@ -761,7 +957,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       const tx: Transaction = {
-        id: uid("tx"),
+        id: makeId("tx"),
         workspaceId: targetId,
         type: input.type,
         amount: Math.round(input.amount),
@@ -791,6 +987,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
           transactions: [tx, ...prev.transactions],
           debts,
         };
+      });
+      cloudWrite(async () => {
+        const sb = createClient()!;
+        const insertRes = await sb.from("transactions").insert({
+          id: tx.id,
+          workspace_id: tx.workspaceId,
+          type: tx.type,
+          amount: tx.amount,
+          date: tx.date,
+          note: tx.note,
+          category_id: tx.categoryId ?? null,
+          account_id: tx.accountId ?? null,
+          to_account_id: tx.toAccountId ?? null,
+          debt_id: tx.debtId ?? null,
+          savings_goal_id: tx.savingsGoalId ?? null,
+          recurring: Boolean(tx.recurring),
+          created_by: tx.createdBy,
+          created_at: tx.createdAt,
+        });
+        if (insertRes.error) return insertRes;
+        if (tx.type === "debt_payment" && tx.debtId) {
+          const debt = data.debts.find((d) => d.id === tx.debtId);
+          if (debt) {
+            return sb
+              .from("debts")
+              .update({ remaining: Math.max(0, debt.remaining - tx.amount) })
+              .eq("id", tx.debtId);
+          }
+        }
+        return insertRes;
       });
       return null;
     },
@@ -891,6 +1117,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
           debts,
         };
       });
+      cloudWrite(() =>
+        createClient()!
+          .from("transactions")
+          .update({
+            workspace_id: next.workspaceId,
+            type: next.type,
+            amount: next.amount,
+            date: next.date,
+            note: next.note,
+            category_id: next.categoryId ?? null,
+            account_id: next.accountId ?? null,
+            to_account_id: next.toAccountId ?? null,
+            debt_id: next.debtId ?? null,
+            savings_goal_id: next.savingsGoalId ?? null,
+            recurring: Boolean(next.recurring),
+          })
+          .eq("id", id),
+      );
       return null;
     },
     [
@@ -929,6 +1173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           debts,
         };
       });
+      cloudWrite(() => createClient()!.from("transactions").delete().eq("id", id));
       return null;
     },
     [data.transactions, persist, user],
@@ -942,6 +1187,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           t.id === id ? { ...t, recurring } : t,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!.from("transactions").update({ recurring }).eq("id", id),
+      );
     },
     [persist],
   );
@@ -1026,23 +1274,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (input: { name: string; principal: number; dueDate?: string; accountId?: string }) => {
       if (!workspace) return "Selecciona un espacio.";
       if (!input.name.trim() || input.principal <= 0) return "Datos de deuda inválidos.";
+      const id = makeId("debt");
+      const createdAt = new Date().toISOString();
+      const principal = Math.round(input.principal);
       persist((prev) => ({
         ...prev,
         debts: [
           ...prev.debts,
           {
-            id: uid("debt"),
+            id,
             workspaceId: workspace.id,
             name: input.name.trim(),
-            principal: Math.round(input.principal),
-            remaining: Math.round(input.principal),
+            principal,
+            remaining: principal,
             dueDate: input.dueDate || undefined,
             accountId: input.accountId,
             isArchived: false,
-            createdAt: new Date().toISOString(),
+            createdAt,
           },
         ],
       }));
+      cloudWrite(() =>
+        createClient()!.from("debts").insert({
+          id,
+          workspace_id: workspace.id,
+          name: input.name.trim(),
+          principal,
+          remaining: principal,
+          due_date: input.dueDate || null,
+          account_id: input.accountId ?? null,
+          is_archived: false,
+          created_at: createdAt,
+        }),
+      );
       return null;
     },
     [persist, workspace],
@@ -1064,6 +1328,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : d,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!
+          .from("debts")
+          .update({
+            ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+            ...(patch.dueDate !== undefined ? { due_date: patch.dueDate || null } : {}),
+            ...(patch.accountId !== undefined ? { account_id: patch.accountId ?? null } : {}),
+            ...(patch.remaining !== undefined ? { remaining: patch.remaining } : {}),
+          })
+          .eq("id", id),
+      );
       return null;
     },
     [data.debts, persist],
@@ -1077,12 +1352,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...prev,
           debts: prev.debts.map((d) => (d.id === id ? { ...d, isArchived: true } : d)),
         }));
+        cloudWrite(() =>
+          createClient()!.from("debts").update({ is_archived: true }).eq("id", id),
+        );
         return null;
       }
       persist((prev) => ({
         ...prev,
         debts: prev.debts.filter((d) => d.id !== id),
       }));
+      cloudWrite(() => createClient()!.from("debts").delete().eq("id", id));
       return null;
     },
     [data.transactions, persist],
@@ -1097,22 +1376,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }) => {
       if (!workspace) return "Selecciona un espacio.";
       if (!input.name.trim() || input.targetAmount <= 0) return "Datos de meta inválidos.";
+      const id = makeId("goal");
+      const createdAt = new Date().toISOString();
+      const targetAmount = Math.round(input.targetAmount);
       persist((prev) => ({
         ...prev,
         savingsGoals: [
           ...prev.savingsGoals,
           {
-            id: uid("goal"),
+            id,
             workspaceId: workspace.id,
             name: input.name.trim(),
-            targetAmount: Math.round(input.targetAmount),
+            targetAmount,
             targetDate: input.targetDate || undefined,
             preferredAccountId: input.preferredAccountId,
             isArchived: false,
-            createdAt: new Date().toISOString(),
+            createdAt,
           },
         ],
       }));
+      cloudWrite(() =>
+        createClient()!.from("savings_goals").insert({
+          id,
+          workspace_id: workspace.id,
+          name: input.name.trim(),
+          target_amount: targetAmount,
+          target_date: input.targetDate || null,
+          preferred_account_id: input.preferredAccountId ?? null,
+          is_archived: false,
+          created_at: createdAt,
+        }),
+      );
       return null;
     },
     [persist, workspace],
@@ -1181,6 +1475,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...prev,
         workspaces: prev.workspaces.map((w) => (w.id === id ? { ...w, name: trimmed } : w)),
       }));
+      cloudWrite(() =>
+        createClient()!.from("workspaces").update({ name: trimmed }).eq("id", id),
+      );
       return null;
     },
     [data.workspaces, persist],
@@ -1216,6 +1513,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         activeWorkspaceId:
           prev.activeWorkspaceId === id ? personal?.id ?? null : prev.activeWorkspaceId,
       }));
+      cloudWrite(() => createClient()!.from("workspaces").delete().eq("id", id));
       return null;
     },
     [data.members, data.workspaces, persist, user],

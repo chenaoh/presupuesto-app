@@ -8,7 +8,10 @@ export function createClient() {
 }
 
 export function isSupabaseConfigured() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  if (!url || !key) return false;
+  // Evita activar modo nube con placeholders de .env.example
+  if (url.includes("placeholder") || key.includes("placeholder")) return false;
+  return true;
 }

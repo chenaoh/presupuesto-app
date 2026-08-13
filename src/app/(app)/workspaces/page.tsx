@@ -31,9 +31,9 @@ export default function WorkspacesPage() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
 
-  function onCreate(e: FormEvent) {
+  async function onCreate(e: FormEvent) {
     e.preventDefault();
-    const err = createSharedWorkspace(name);
+    const err = await createSharedWorkspace(name);
     if (err) {
       setError(err);
       return;
@@ -44,9 +44,9 @@ export default function WorkspacesPage() {
     setCreateOpen(false);
   }
 
-  function onAccept(e: FormEvent) {
+  async function onAccept(e: FormEvent) {
     e.preventDefault();
-    const err = acceptInvite(inviteCode);
+    const err = await acceptInvite(inviteCode);
     if (err) {
       setError(err);
       setMessage(null);
@@ -161,7 +161,10 @@ export default function WorkspacesPage() {
             <button
               className="btn btn-ghost text-sm"
               type="button"
-              onClick={() => setGeneratedCode(createInvite())}
+              onClick={async () => {
+                const code = await createInvite();
+                setGeneratedCode(code);
+              }}
             >
               Generar código
             </button>

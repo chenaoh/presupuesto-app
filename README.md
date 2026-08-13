@@ -2,49 +2,50 @@
 
 App web + PWA para controlar ingresos, gastos, cuentas, presupuestos, deudas y metas de ahorro, con espacios **personal** y **familiar**.
 
-Proyecto independiente de `codejavu-studio`.
-
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind CSS v4
-- Estado local persistente (`localStorage`) listo para usar sin backend
-- Migración SQL lista para Supabase (nube + multi-dispositivo)
+- Supabase (Auth + Postgres) para multi-dispositivo e invitaciones
+- Fallback local (`localStorage`) si no hay variables de Supabase
 - Recharts, next-themes, PWA
 
-## Arranque rápido
+## Arranque rápido (solo local)
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abre la URL que muestra la terminal al iniciar.
+Sin Supabase, los datos viven en el navegador. Un código de invitación **no** sirve en otro celular/PC.
 
-Los datos se guardan en el navegador. En **Movimientos** puedes asignar un ingreso/gasto a tu espacio personal o a un familiar sin cambiar de vista.
+## Multi-dispositivo (recomendado para producción)
+
+Para que una persona se una a tu espacio familiar desde la app desplegada:
+
+1. Crea un proyecto en [Supabase](https://supabase.com).
+2. En el SQL Editor, ejecuta en orden:
+   - [`supabase/migrations/001_initial.sql`](supabase/migrations/001_initial.sql)
+   - [`supabase/migrations/002_invites_and_auth.sql`](supabase/migrations/002_invites_and_auth.sql)
+3. En **Authentication → Providers → Email**, para pruebas rápidas puedes desactivar **Confirm email**.
+4. Copia URL y anon key a `.env.local` (ver `.env.example`).
+5. En Vercel → Project → Settings → Environment Variables, agrega las mismas:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+6. Redeploy.
+
+### Flujo familiar
+
+1. Usuario A se registra en la URL de Vercel e inicia sesión.
+2. Crea un espacio familiar y genera un código (válido 7 días, un solo uso).
+3. Usuario B se registra/entra en la **misma URL**, pega el código y se une.
+4. Ambos ven categorías y movimientos del espacio compartido (guardados en Supabase).
 
 ## Funcionalidades
 
-- Login / registro
-- Espacio personal + familiar compartido (invitaciones)
-- Categorías base + propias
-- Cuentas con institución y tipo (ahorros, fiduciaria, billetera, etc.)
-- Movimientos: ingreso, gasto, transferencia, pago de deuda, aporte/retiro ahorro
-- Presupuestos mensuales por categoría
-- Deudas y metas de ahorro
+- Login / registro (Supabase Auth cuando hay nube)
+- Espacio personal + familiar compartido (invitaciones por código)
+- Categorías, cuentas, movimientos, presupuestos, deudas y metas
 - Dashboard con gráficos
-- Temas claro / oscuro / sistema + color de acento
+- Temas + color de acento
 - PWA instalable
-
-## Supabase (opcional, para nube)
-
-1. Crea un proyecto en [Supabase](https://supabase.com).
-2. Ejecuta [`supabase/migrations/001_initial.sql`](supabase/migrations/001_initial.sql) en el SQL Editor.
-3. Configura `.env.local` desde `.env.example`.
-4. Despliega el front en Vercel.
-
-La UI actual usa almacenamiento local. La migración SQL ya modela workspaces, RLS, cuentas, deudas y ahorros para cuando conectes Supabase Auth/DB.
-
-## Deploy front
-
-- Vercel: importa el repo y despliega.
-- Sin variables de entorno obligatorias mientras uses el modo local.
+- Exportar gastos a CSV
