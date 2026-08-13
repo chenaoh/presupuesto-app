@@ -60,6 +60,7 @@ export default function RegisterPage() {
               className="input"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Tu nombre o cómo quieres aparecer"
               required
             />
           </div>
@@ -70,6 +71,7 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@correo.com"
               required
               autoComplete="email"
             />
@@ -78,6 +80,7 @@ export default function RegisterPage() {
             label="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mínimo 6 caracteres"
             required
             minLength={6}
             autoComplete="new-password"

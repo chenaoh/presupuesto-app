@@ -5,6 +5,7 @@ import { Download, Pencil, Repeat2, Trash2 } from "lucide-react";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NeedAccountsBanner } from "@/components/NeedAccountsBanner";
 import { accountColor, TYPE_COLORS } from "@/lib/colors";
 import { downloadCsv } from "@/lib/csv";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -64,6 +65,7 @@ export default function TransactionsPage() {
   }, [type, allCategories]);
 
   const accounts = allAccounts();
+  const hasAccounts = accounts.length > 0;
   const debts = allDebts();
   const goals = allGoals();
   const filterCategories = useMemo(() => allCategories(), [allCategories]);
@@ -91,6 +93,10 @@ export default function TransactionsPage() {
   }
 
   function openCreate() {
+    if (!hasAccounts) {
+      setError("Primero crea al menos una cuenta en Cuentas.");
+      return;
+    }
     resetFields();
     setFormOpen(true);
   }
@@ -268,7 +274,12 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary text-sm" onClick={openCreate}>
+        <button
+          type="button"
+          className="btn btn-primary text-sm"
+          onClick={openCreate}
+          disabled={!hasAccounts}
+        >
           + Nuevo
         </button>
         <button type="button" className="btn btn-ghost text-sm" onClick={exportExpensesCsv}>
@@ -276,6 +287,10 @@ export default function TransactionsPage() {
           CSV gastos
         </button>
       </div>
+
+      {!hasAccounts && (
+        <NeedAccountsBanner message="Para registrar movimientos necesitas crear al menos una cuenta." />
+      )}
 
       {(error || message) && !formOpen && (
         <p className={`text-xs ${error ? "text-danger" : "text-income"}`}>{error ?? message}</p>
@@ -416,6 +431,7 @@ export default function TransactionsPage() {
               min="1"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              placeholder="Valor del movimiento (ej: 85000)"
               required
             />
           </div>
@@ -425,7 +441,12 @@ export default function TransactionsPage() {
           </div>
           <div>
             <label className="label">Nota</label>
-            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opcional" />
+            <input
+              className="input"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Detalle opcional (ej: mercado, Netflix)"
+            />
           </div>
 
           {(type === "income" || type === "expense") && (
@@ -435,6 +456,7 @@ export default function TransactionsPage() {
                 value={categoryId}
                 onChange={setCategoryId}
                 required
+                placeholder="Selecciona la categoría"
                 options={categories.map((c) => ({
                   value: c.id,
                   label: itemLabel(c.workspaceId, c.name),
@@ -451,6 +473,7 @@ export default function TransactionsPage() {
                 value={accountId}
                 onChange={setAccountId}
                 required
+                placeholder="Selecciona la cuenta"
                 options={accounts.map((a) => ({
                   value: a.id,
                   label: itemLabel(a.workspaceId, a.name),
@@ -468,6 +491,7 @@ export default function TransactionsPage() {
                   value={accountId}
                   onChange={setAccountId}
                   required
+                  placeholder="Cuenta de origen"
                   options={accounts.map((a) => ({
                     value: a.id,
                     label: itemLabel(a.workspaceId, a.name),
@@ -481,6 +505,7 @@ export default function TransactionsPage() {
                   value={toAccountId}
                   onChange={setToAccountId}
                   required
+                  placeholder="Cuenta de destino"
                   options={accounts.map((a) => ({
                     value: a.id,
                     label: itemLabel(a.workspaceId, a.name),
@@ -498,6 +523,7 @@ export default function TransactionsPage() {
                 value={debtId}
                 onChange={setDebtId}
                 required
+                placeholder="Selecciona la deuda a pagar"
                 options={debts.map((d) => ({
                   value: d.id,
                   label: itemLabel(d.workspaceId, d.name),
@@ -514,6 +540,7 @@ export default function TransactionsPage() {
                 value={savingsGoalId}
                 onChange={setSavingsGoalId}
                 required
+                placeholder="Selecciona la meta de ahorro"
                 options={goals.map((g) => ({
                   value: g.id,
                   label: itemLabel(g.workspaceId, g.name),
@@ -528,7 +555,7 @@ export default function TransactionsPage() {
 
           <label className="flex items-center gap-2 text-xs font-medium sm:col-span-2">
             <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
-            Recurrente
+            Marcar como recurrente (arriendo, suscripciones, etc.)
           </label>
           {error && <p className="text-xs text-danger sm:col-span-2">{error}</p>}
           <div className="sm:col-span-2">

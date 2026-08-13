@@ -19,6 +19,7 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { clsx } from "@/lib/format";
+import { HelpButton } from "@/components/HelpButton";
 
 const links = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -124,6 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </option>
               ))}
             </select>
+            <HelpButton />
             <button
               className="btn btn-ghost px-1.5 py-1"
               onClick={() => {

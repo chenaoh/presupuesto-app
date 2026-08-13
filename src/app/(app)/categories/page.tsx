@@ -110,8 +110,14 @@ export default function CategoriesPage() {
       <Modal open={formOpen} onClose={closeForm} title={editing ? "Editar categoría" : "Nueva categoría"}>
         <form onSubmit={onSubmit} className="grid gap-2 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="label">Nombre</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+            <label className="label">Nombre de la categoría</label>
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Mercado, Transporte, Salario"
+              required
+            />
           </div>
           <div>
             <label className="label">Tipo</label>

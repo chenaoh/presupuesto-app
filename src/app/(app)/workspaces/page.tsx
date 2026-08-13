@@ -192,8 +192,14 @@ export default function WorkspacesPage() {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo espacio">
         <form onSubmit={onCreate} className="space-y-2">
           <div>
-            <label className="label">Nombre</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+            <label className="label">Nombre del espacio</label>
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Familia, Casa, Pareja"
+              required
+            />
           </div>
           {error && <p className="text-xs text-danger">{error}</p>}
           <button className="btn btn-primary w-full">Crear</button>
@@ -203,11 +209,12 @@ export default function WorkspacesPage() {
       <Modal open={joinOpen} onClose={() => setJoinOpen(false)} title="Unirse con código">
         <form onSubmit={onAccept} className="space-y-2">
           <div>
-            <label className="label">Código</label>
+            <label className="label">Código de invitación</label>
             <input
               className="input"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              placeholder="Pega el código de 6 caracteres"
               required
             />
           </div>
@@ -226,8 +233,14 @@ export default function WorkspacesPage() {
       >
         <form onSubmit={onRename} className="space-y-2">
           <div>
-            <label className="label">Nombre</label>
-            <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} required />
+            <label className="label">Nuevo nombre</label>
+            <input
+              className="input"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Nombre del espacio familiar"
+              required
+            />
           </div>
           {error && <p className="text-xs text-danger">{error}</p>}
           <button className="btn btn-primary w-full">Guardar</button>

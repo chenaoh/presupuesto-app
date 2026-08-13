@@ -150,7 +150,7 @@ export default function BudgetsPage() {
               required
               disabled={!!editingId}
             >
-              <option value="">Selecciona</option>
+              <option value="">Selecciona la categoría de gasto</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {itemLabel(c.workspaceId, c.name)}
@@ -159,13 +159,14 @@ export default function BudgetsPage() {
             </select>
           </div>
           <div>
-            <label className="label">Límite</label>
+            <label className="label">Límite mensual</label>
             <input
               className="input"
               type="number"
               min="1"
               value={limitAmount}
               onChange={(e) => setLimitAmount(e.target.value)}
+              placeholder="Tope a gastar en el mes (ej: 400000)"
               required
             />
           </div>

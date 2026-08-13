@@ -91,6 +91,8 @@ type AppContextValue = {
   archiveCategory: (id: string) => void;
   deleteCategory: (id: string) => string | null;
   addInstitution: (name: string) => string | null;
+  updateInstitution: (id: string, name: string) => string | null;
+  deleteInstitution: (id: string) => string | null;
   addAccount: (input: {
     name: string;
     institutionId: string;
@@ -679,6 +681,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [persist, workspace],
   );
 
+  const updateInstitution = useCallback(
+    (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return "Escribe un nombre.";
+      const inst = data.institutions.find((i) => i.id === id);
+      if (!inst) return "Institución no encontrada.";
+      persist((prev) => ({
+        ...prev,
+        institutions: prev.institutions.map((i) =>
+          i.id === id ? { ...i, name: trimmed } : i,
+        ),
+      }));
+      cloudWrite(() =>
+        createClient()!.from("institutions").update({ name: trimmed }).eq("id", id),
+      );
+      return null;
+    },
+    [data.institutions, persist],
+  );
+
+  const deleteInstitution = useCallback(
+    (id: string) => {
+      const linked = data.accounts.some((a) => a.institutionId === id);
+      if (linked) {
+        return "No se puede eliminar: hay cuentas asociadas. Cámbialas o elimínalas primero.";
+      }
+      persist((prev) => ({
+        ...prev,
+        institutions: prev.institutions.filter((i) => i.id !== id),
+      }));
+      cloudWrite(() => createClient()!.from("institutions").delete().eq("id", id));
+      return null;
+    },
+    [data.accounts, persist],
+  );
+
   const addAccount = useCallback(
     (input: {
       name: string;
@@ -688,6 +726,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }) => {
       if (!workspace) return "Selecciona un espacio.";
       if (!input.name.trim()) return "Escribe un nombre para la cuenta.";
+      if (!input.institutionId) {
+        return "Selecciona una institución. Créala antes en Instituciones.";
+      }
+      const inst = data.institutions.find(
+        (i) => i.id === input.institutionId && i.workspaceId === workspace.id,
+      );
+      if (!inst) return "Institución no válida para este espacio.";
       const id = makeId("acc");
       const createdAt = new Date().toISOString();
       persist((prev) => ({
@@ -720,7 +765,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
       return null;
     },
-    [persist, workspace],
+    [data.institutions, persist, workspace],
   );
 
   const archiveAccount = useCallback(
@@ -907,6 +952,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addTransaction = useCallback(
     (input: CreateTransactionInput) => {
       if (!user) return "Sesión inválida.";
+      const funding = data.accounts.filter((a) => !a.isArchived);
+      if (funding.length === 0) {
+        return "Primero crea al menos una cuenta en Cuentas.";
+      }
       const personal = myWorkspaces.find((w) => w.type === "personal");
       const targetId = input.targetWorkspaceId || workspace?.id || personal?.id;
       if (!targetId) return "Selecciona a qué espacio corresponde el movimiento.";
@@ -1020,7 +1069,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       return null;
     },
-    [data.categories, data.debts, data.members, data.savingsGoals, myWorkspaces, persist, user, workspace?.id],
+    [data.accounts, data.categories, data.debts, data.members, data.savingsGoals, myWorkspaces, persist, user, workspace?.id],
   );
 
   const updateTransaction = useCallback(
@@ -1647,6 +1696,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     archiveCategory,
     deleteCategory,
     addInstitution,
+    updateInstitution,
+    deleteInstitution,
     addAccount,
     updateAccount,
     archiveAccount,

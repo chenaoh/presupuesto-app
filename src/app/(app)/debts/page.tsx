@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NeedAccountsBanner } from "@/components/NeedAccountsBanner";
 import { formatMoney } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import type { Debt } from "@/lib/types";
@@ -34,6 +35,7 @@ export default function DebtsPage() {
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
   const accounts = allAccounts();
+  const hasAccounts = accounts.length > 0;
   const debts = workspaceDebts();
 
   function closeForm() {
@@ -133,10 +135,25 @@ export default function DebtsPage() {
         >
           + Nueva
         </button>
-        <button type="button" className="btn btn-ghost text-sm" onClick={() => setPayOpen(true)}>
+        <button
+          type="button"
+          className="btn btn-ghost text-sm"
+          onClick={() => {
+            if (!hasAccounts) {
+              setError("Primero crea al menos una cuenta en Cuentas.");
+              return;
+            }
+            setPayOpen(true);
+          }}
+          disabled={!hasAccounts}
+        >
           Registrar pago
         </button>
       </div>
+
+      {!hasAccounts && (
+        <NeedAccountsBanner message="Para registrar pagos de deuda necesitas al menos una cuenta." />
+      )}
 
       {error && !formOpen && !payOpen && <p className="text-xs text-danger">{error}</p>}
 
@@ -192,28 +209,35 @@ export default function DebtsPage() {
       <Modal open={formOpen} onClose={closeForm} title={editing ? "Editar deuda" : "Nueva deuda"}>
         <form onSubmit={onCreate} className="grid gap-2 sm:grid-cols-2">
           <div>
-            <label className="label">Nombre</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+            <label className="label">Nombre de la deuda</label>
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Tarjeta Visa, préstamo carro"
+              required
+            />
           </div>
           <div>
-            <label className="label">{editing ? "Restante" : "Principal"}</label>
+            <label className="label">{editing ? "Saldo restante" : "Monto principal"}</label>
             <input
               className="input"
               type="number"
               min="1"
               value={principal}
               onChange={(e) => setPrincipal(e.target.value)}
+              placeholder={editing ? "Cuánto falta por pagar" : "Valor total de la deuda"}
               required
             />
           </div>
           <div>
-            <label className="label">Vence</label>
+            <label className="label">Fecha de vencimiento (opcional)</label>
             <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </div>
           <div>
-            <label className="label">Cuenta</label>
+            <label className="label">Cuenta asociada (opcional)</label>
             <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              <option value="">Ninguna</option>
+              <option value="">Sin cuenta asociada</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {itemLabel(a.workspaceId, a.name)}
@@ -229,9 +253,9 @@ export default function DebtsPage() {
       <Modal open={payOpen} onClose={() => setPayOpen(false)} title="Registrar pago">
         <form onSubmit={onPay} className="grid gap-2">
           <div>
-            <label className="label">Deuda</label>
+            <label className="label">Deuda a pagar</label>
             <select className="select" value={payDebtId} onChange={(e) => setPayDebtId(e.target.value)} required>
-              <option value="">Selecciona</option>
+              <option value="">Selecciona la deuda</option>
               {debts.map((d) => (
                 <option key={d.id} value={d.id}>
                   {itemLabel(d.workspaceId, d.name)}
@@ -240,25 +264,26 @@ export default function DebtsPage() {
             </select>
           </div>
           <div>
-            <label className="label">Monto</label>
+            <label className="label">Monto del pago</label>
             <input
               className="input"
               type="number"
               min="1"
               value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)}
+              placeholder="Cuánto vas a abonar"
               required
             />
           </div>
           <div>
-            <label className="label">Desde cuenta</label>
+            <label className="label">Cuenta desde la que pagas</label>
             <select
               className="select"
               value={payAccountId}
               onChange={(e) => setPayAccountId(e.target.value)}
               required
             >
-              <option value="">Selecciona</option>
+              <option value="">Selecciona la cuenta</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {itemLabel(a.workspaceId, a.name)}

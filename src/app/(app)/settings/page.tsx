@@ -57,11 +57,12 @@ export default function SettingsPage() {
       <section className="card space-y-3 p-3 sm:p-4">
         <h2 className="text-base font-semibold">Perfil</h2>
         <div>
-          <label className="label">Nombre</label>
+          <label className="label">Nombre para mostrar</label>
           <input
             className="input"
             value={user.displayName}
             onChange={(e) => updateProfile({ displayName: e.target.value })}
+            placeholder="Cómo te verán en espacios compartidos"
           />
         </div>
         <p className="muted text-xs">{user.email}</p>
