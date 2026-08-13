@@ -343,14 +343,27 @@ export default function TransactionsPage() {
       )}
 
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
+        <FilterPill
+          active={filter === "all"}
+          color="#475569"
+          onClick={() => setFilter("all")}
+        >
           Todos
         </FilterPill>
-        <FilterPill active={filter === "recurring"} onClick={() => setFilter("recurring")}>
+        <FilterPill
+          active={filter === "recurring"}
+          color="#7C3AED"
+          onClick={() => setFilter("recurring")}
+        >
           Recurrentes
         </FilterPill>
         {TYPES.map((t) => (
-          <FilterPill key={t.value} active={filter === t.value} onClick={() => setFilter(t.value)}>
+          <FilterPill
+            key={t.value}
+            active={filter === t.value}
+            color={TYPE_COLORS[t.value] ?? "#64748B"}
+            onClick={() => setFilter(t.value)}
+          >
             {t.label}
           </FilterPill>
         ))}
@@ -665,10 +678,12 @@ export default function TransactionsPage() {
 
 function FilterPill({
   active,
+  color,
   onClick,
   children,
 }: {
   active: boolean;
+  color: string;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -676,9 +691,17 @@ function FilterPill({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
-        active ? "border-accent bg-[color-mix(in_oklab,var(--accent)_12%,transparent)] text-accent" : "border-border muted"
-      }`}
+      className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
+      style={{
+        color,
+        borderColor: active
+          ? color
+          : `color-mix(in oklab, ${color} 45%, var(--border))`,
+        background: active
+          ? `color-mix(in oklab, ${color} 24%, var(--bg-elevated))`
+          : `color-mix(in oklab, ${color} 12%, var(--bg-elevated))`,
+        boxShadow: active ? `inset 0 0 0 1px color-mix(in oklab, ${color} 70%, transparent)` : undefined,
+      }}
     >
       {children}
     </button>
