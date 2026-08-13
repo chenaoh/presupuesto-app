@@ -238,6 +238,50 @@ html.dark .btn-primary {
   background: color-mix(in oklab, var(--bg-elevated) 80%, transparent);
 }
 
+.pill.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, var(--bg-elevated));
+  font-weight: 650;
+}
+
+html.dark .pill.is-selected {
+  color: color-mix(in oklab, var(--accent) 38%, white);
+  border-color: color-mix(in oklab, var(--accent) 55%, white);
+  background: color-mix(in oklab, var(--accent) 30%, var(--bg-elevated));
+}
+
+.filter-pill {
+  --pill-color: var(--accent);
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in oklab, var(--pill-color) 48%, var(--border));
+  padding: 0.25rem 0.65rem;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--pill-color);
+  background: color-mix(in oklab, var(--pill-color) 12%, var(--bg-elevated));
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-pill.is-active {
+  color: #ffffff;
+  border-color: var(--pill-color);
+  background: var(--pill-color);
+}
+
+html.dark .filter-pill:not(.is-active) {
+  color: color-mix(in oklab, var(--pill-color) 40%, white);
+  border-color: color-mix(in oklab, var(--pill-color) 55%, var(--border));
+  background: color-mix(in oklab, var(--pill-color) 20%, var(--bg-elevated));
+}
+
+html.dark .filter-pill.is-active {
+  color: #ffffff;
+  border-color: color-mix(in oklab, var(--pill-color) 55%, white);
+  background: color-mix(in oklab, var(--pill-color) 62%, white);
+}
+
 .progress {
   height: 8px;
   border-radius: 999px;
@@ -756,6 +800,11 @@ html.dark .modal-panel {
 .color-combo-option:hover,
 .color-combo-option.is-selected {
   background: color-mix(in oklab, var(--accent) 12%, transparent);
+}
+
+html.dark .color-combo-option.is-selected {
+  color: color-mix(in oklab, var(--accent) 40%, white);
+  background: color-mix(in oklab, var(--accent) 26%, transparent);
 }
 
 .tx-swatch {

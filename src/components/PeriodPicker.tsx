@@ -18,7 +18,7 @@ export function PeriodPicker({ compact }: { compact?: boolean }) {
           <button
             key={m.value}
             type="button"
-            className={`pill text-[11px] ${mode === m.value ? "border-accent text-accent" : ""}`}
+            className={`pill text-[11px] ${mode === m.value ? "is-selected" : ""}`}
             onClick={() => setMode(m.value)}
           >
             {m.label}

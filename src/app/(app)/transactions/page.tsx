@@ -691,17 +691,8 @@ function FilterPill({
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
-      style={{
-        color,
-        borderColor: active
-          ? color
-          : `color-mix(in oklab, ${color} 45%, var(--border))`,
-        background: active
-          ? `color-mix(in oklab, ${color} 24%, var(--bg-elevated))`
-          : `color-mix(in oklab, ${color} 12%, var(--bg-elevated))`,
-        boxShadow: active ? `inset 0 0 0 1px color-mix(in oklab, ${color} 70%, transparent)` : undefined,
-      }}
+      className={`filter-pill ${active ? "is-active" : ""}`}
+      style={{ ["--pill-color" as keyof React.CSSProperties]: color } as React.CSSProperties}
     >
       {children}
     </button>

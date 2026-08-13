@@ -142,7 +142,7 @@ export default function SettingsPage() {
             <button
               key={mode}
               type="button"
-              className={`pill ${user.theme === mode ? "border-accent text-accent" : ""}`}
+              className={`pill ${user.theme === mode ? "is-selected" : ""}`}
               onClick={() => applyTheme(mode)}
             >
               {mode === "system"
