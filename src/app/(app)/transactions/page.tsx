@@ -40,6 +40,7 @@ export default function TransactionsPage() {
     allGoals,
     itemLabel,
     workspaceLabel,
+    memberName,
   } = useApp();
 
   const [type, setType] = useState<TransactionType>("expense");
@@ -62,6 +63,7 @@ export default function TransactionsPage() {
   const [repeatDate, setRepeatDate] = useState(new Date().toISOString().slice(0, 10));
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [managing, setManaging] = useState(false);
   const { guard, dialog } = useRequireAccounts(
     "Para registrar un movimiento primero debes crear al menos una cuenta.",
@@ -260,7 +262,11 @@ export default function TransactionsPage() {
     return TYPE_COLORS[tx.type] ?? "var(--accent)";
   }
 
-  function txTitle(tx: Transaction) {
+  function txTypeLabel(tx: Transaction) {
+    return TYPES.find((t) => t.value === tx.type)?.label ?? tx.type;
+  }
+
+  function txCategoryLabel(tx: Transaction) {
     if (tx.categoryId) {
       const cat = data.categories.find((c) => c.id === tx.categoryId);
       if (cat) return itemLabel(cat.workspaceId, cat.name);
@@ -280,33 +286,19 @@ export default function TransactionsPage() {
         return `${itemLabel(from.workspaceId, from.name)} → ${itemLabel(to.workspaceId, to.name)}`;
       }
     }
-    return TYPES.find((t) => t.value === tx.type)?.label ?? tx.type;
+    return txTypeLabel(tx);
   }
 
-  function txSubtitle(tx: Transaction) {
-    const typeLabel = TYPES.find((t) => t.value === tx.type)?.label ?? tx.type;
-    const from = tx.accountId
-      ? data.accounts.find((a) => a.id === tx.accountId)
-      : undefined;
-    const to = tx.toAccountId
-      ? data.accounts.find((a) => a.id === tx.toAccountId)
-      : undefined;
-    let accountPart: string | null = null;
-    if (tx.type === "transfer" && from && to) {
-      accountPart = `De ${itemLabel(from.workspaceId, from.name)} → ${itemLabel(to.workspaceId, to.name)}`;
-    } else if (from) {
-      accountPart = `Cuenta: ${itemLabel(from.workspaceId, from.name)}`;
-    }
-    const method = tx.paymentMethod ? PAYMENT_METHOD_LABELS[tx.paymentMethod] : null;
-    const parts = [
-      formatDate(tx.date),
-      typeLabel,
-      workspaceLabel(tx.workspaceId),
-      accountPart,
-      method,
-      tx.note || null,
-    ];
-    return parts.filter(Boolean).join(" · ");
+  function txDescription(tx: Transaction) {
+    const note = tx.note.trim();
+    if (note) return note;
+    return txTypeLabel(tx);
+  }
+
+  function accountLabel(id?: string) {
+    if (!id) return null;
+    const acc = data.accounts.find((a) => a.id === id);
+    return acc ? itemLabel(acc.workspaceId, acc.name) : null;
   }
 
   return (
@@ -403,34 +395,45 @@ export default function TransactionsPage() {
             const positive = tx.type === "income" || tx.type === "savings_withdrawal";
             const mine = user?.id === tx.createdBy;
             const accent = txAccent(tx);
+            const category = txCategoryLabel(tx);
             return (
-              <li key={tx.id} className="flex items-center gap-2.5 px-3 py-2.5">
-                <span className="tx-swatch" style={{ ["--swatch" as string]: accent }} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate text-sm font-semibold">{txTitle(tx)}</p>
-                    {tx.recurring && (
-                      <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                        style={{
-                          background: `color-mix(in oklab, ${accent} 18%, white)`,
-                          color: accent,
-                        }}
-                      >
-                        rec.
-                      </span>
-                    )}
-                  </div>
-                  <p className="muted truncate text-[11px]">{txSubtitle(tx)}</p>
-                </div>
-                <p
-                  className={`shrink-0 text-sm font-semibold tabular-nums ${
-                    positive ? "text-income" : "text-expense"
-                  }`}
+              <li key={tx.id} className="flex items-stretch gap-1 px-1.5 py-1 sm:px-2">
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-2 text-left transition hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]"
+                  onClick={() => setDetailTx(tx)}
                 >
-                  {positive ? "+" : "-"}
-                  {formatMoney(tx.amount, currency)}
-                </p>
-                <div className="flex shrink-0 gap-1">
+                  <span className="tx-swatch" style={{ ["--swatch" as string]: accent }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-sm font-semibold">{txDescription(tx)}</p>
+                      {tx.recurring && (
+                        <span
+                          className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                          style={{
+                            background: `color-mix(in oklab, ${accent} 18%, var(--bg-elevated))`,
+                            color: accent,
+                          }}
+                        >
+                          rec.
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-[11px] font-medium" style={{ color: accent }}>
+                      {category}
+                    </p>
+                    <p className="muted truncate text-[11px]">{formatDate(tx.date)}</p>
+                  </div>
+                  <p
+                    className={`shrink-0 self-center text-sm font-semibold tabular-nums ${
+                      positive ? "text-income" : "text-expense"
+                    }`}
+                  >
+                    {positive ? "+" : "-"}
+                    {formatMoney(tx.amount, currency)}
+                  </p>
+                </button>
+                <div className="flex shrink-0 items-center gap-1 pr-1">
                   {tx.recurring && (
                     <button
                       type="button"
@@ -470,6 +473,68 @@ export default function TransactionsPage() {
           })}
         </ul>
       </div>
+
+      <Modal
+        open={!!detailTx}
+        onClose={() => setDetailTx(null)}
+        title="Detalle del movimiento"
+      >
+        {detailTx && (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide muted">
+                  {txTypeLabel(detailTx)}
+                </p>
+                <p className="mt-0.5 text-base font-semibold">{txDescription(detailTx)}</p>
+              </div>
+              <p
+                className={`shrink-0 text-lg font-bold tabular-nums ${
+                  detailTx.type === "income" || detailTx.type === "savings_withdrawal"
+                    ? "text-income"
+                    : "text-expense"
+                }`}
+              >
+                {detailTx.type === "income" || detailTx.type === "savings_withdrawal" ? "+" : "-"}
+                {formatMoney(detailTx.amount, currency)}
+              </p>
+            </div>
+
+            <dl className="grid gap-2 text-sm">
+              <DetailRow label="Fecha" value={formatDate(detailTx.date)} />
+              <DetailRow label="Categoría" value={txCategoryLabel(detailTx)} />
+              <DetailRow label="Descripción" value={detailTx.note.trim() || "Sin descripción"} />
+              <DetailRow label="Cuenta" value={accountLabel(detailTx.accountId) ?? "—"} />
+              {detailTx.toAccountId && (
+                <DetailRow label="Cuenta destino" value={accountLabel(detailTx.toAccountId) ?? "—"} />
+              )}
+              {detailTx.paymentMethod && (
+                <DetailRow
+                  label="Método de pago"
+                  value={PAYMENT_METHOD_LABELS[detailTx.paymentMethod]}
+                />
+              )}
+              <DetailRow label="Recurrente" value={detailTx.recurring ? "Sí" : "No"} />
+              <DetailRow label="Espacio" value={workspaceLabel(detailTx.workspaceId)} />
+              <DetailRow label="Registrado por" value={memberName(detailTx.createdBy)} />
+            </dl>
+
+            {user?.id === detailTx.createdBy && (
+              <button
+                type="button"
+                className="btn btn-primary w-full text-sm"
+                onClick={() => {
+                  const tx = detailTx;
+                  setDetailTx(null);
+                  openEdit(tx);
+                }}
+              >
+                Editar movimiento
+              </button>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={formOpen}
@@ -696,6 +761,15 @@ function FilterPill({
     >
       {children}
     </button>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-3 py-2">
+      <dt className="muted shrink-0 text-xs font-medium">{label}</dt>
+      <dd className="text-right text-sm font-medium">{value}</dd>
+    </div>
   );
 }
 
