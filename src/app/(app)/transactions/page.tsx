@@ -1,15 +1,15 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Download, Pencil, Repeat2, Trash2 } from "lucide-react";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
-import { NeedAccountsBanner } from "@/components/NeedAccountsBanner";
 import { accountColor, TYPE_COLORS } from "@/lib/colors";
 import { downloadCsv } from "@/lib/csv";
 import { formatDate, formatMoney } from "@/lib/format";
 import { useApp } from "@/lib/store";
+import { useRequireAccounts } from "@/lib/useRequireAccounts";
 import type { Transaction, TransactionType } from "@/lib/types";
 
 const TYPES: Array<{ value: TransactionType; label: string }> = [
@@ -57,6 +57,9 @@ export default function TransactionsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
+  const { guard, dialog } = useRequireAccounts(
+    "Para registrar un movimiento primero debes crear al menos una cuenta.",
+  );
 
   const categories = useMemo(() => {
     if (type === "income") return allCategories("income");
@@ -65,7 +68,6 @@ export default function TransactionsPage() {
   }, [type, allCategories]);
 
   const accounts = allAccounts();
-  const hasAccounts = accounts.length > 0;
   const debts = allDebts();
   const goals = allGoals();
   const filterCategories = useMemo(() => allCategories(), [allCategories]);
@@ -93,13 +95,20 @@ export default function TransactionsPage() {
   }
 
   function openCreate() {
-    if (!hasAccounts) {
-      setError("Primero crea al menos una cuenta en Cuentas.");
-      return;
-    }
-    resetFields();
-    setFormOpen(true);
+    guard(() => {
+      resetFields();
+      setFormOpen(true);
+    });
   }
+
+  useEffect(() => {
+    function onOpen() {
+      openCreate();
+    }
+    window.addEventListener("presupuesto:open-new-tx", onOpen);
+    return () => window.removeEventListener("presupuesto:open-new-tx", onOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guard]);
 
   function openEdit(tx: Transaction) {
     if (!user || tx.createdBy !== user.id) return;
@@ -274,12 +283,7 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn btn-primary text-sm"
-          onClick={openCreate}
-          disabled={!hasAccounts}
-        >
+        <button type="button" className="btn btn-primary text-sm" onClick={openCreate}>
           + Nuevo
         </button>
         <button type="button" className="btn btn-ghost text-sm" onClick={exportExpensesCsv}>
@@ -288,9 +292,7 @@ export default function TransactionsPage() {
         </button>
       </div>
 
-      {!hasAccounts && (
-        <NeedAccountsBanner message="Para registrar movimientos necesitas crear al menos una cuenta." />
-      )}
+      {dialog}
 
       {(error || message) && !formOpen && (
         <p className={`text-xs ${error ? "text-danger" : "text-income"}`}>{error ?? message}</p>

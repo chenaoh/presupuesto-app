@@ -4,9 +4,9 @@ import { FormEvent, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
-import { NeedAccountsBanner } from "@/components/NeedAccountsBanner";
 import { formatMoney } from "@/lib/format";
 import { useApp } from "@/lib/store";
+import { useRequireAccounts } from "@/lib/useRequireAccounts";
 import type { Debt } from "@/lib/types";
 
 export default function DebtsPage() {
@@ -35,8 +35,10 @@ export default function DebtsPage() {
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
   const accounts = allAccounts();
-  const hasAccounts = accounts.length > 0;
   const debts = workspaceDebts();
+  const { guard, dialog } = useRequireAccounts(
+    "Para registrar un pago de deuda primero debes crear al menos una cuenta.",
+  );
 
   function closeForm() {
     setFormOpen(false);
@@ -138,22 +140,13 @@ export default function DebtsPage() {
         <button
           type="button"
           className="btn btn-ghost text-sm"
-          onClick={() => {
-            if (!hasAccounts) {
-              setError("Primero crea al menos una cuenta en Cuentas.");
-              return;
-            }
-            setPayOpen(true);
-          }}
-          disabled={!hasAccounts}
+          onClick={() => guard(() => setPayOpen(true))}
         >
           Registrar pago
         </button>
       </div>
 
-      {!hasAccounts && (
-        <NeedAccountsBanner message="Para registrar pagos de deuda necesitas al menos una cuenta." />
-      )}
+      {dialog}
 
       {error && !formOpen && !payOpen && <p className="text-xs text-danger">{error}</p>}
 

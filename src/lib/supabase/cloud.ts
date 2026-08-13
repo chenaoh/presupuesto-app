@@ -36,6 +36,7 @@ function mapProfile(
     locale: string;
     currency: string;
     created_at: string;
+    avatar_url?: string | null;
   },
   email: string,
 ): Profile {
@@ -49,6 +50,7 @@ function mapProfile(
     locale: row.locale,
     currency: row.currency,
     createdAt: row.created_at,
+    avatarData: row.avatar_url ?? undefined,
   };
 }
 
@@ -405,7 +407,7 @@ export async function loadCloudData(userId: string, email: string): Promise<AppD
       passwordHash: "",
       displayName: email.split("@")[0] || "Usuario",
       theme: "system",
-      accentColor: "#0D9488",
+      accentColor: "#1F6B4F",
       locale: "es-CO",
       currency: "COP",
       createdAt: new Date().toISOString(),
@@ -596,14 +598,15 @@ export async function cloudAcceptInvite(
 
 export async function cloudUpdateProfile(
   userId: string,
-  patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor">>,
+  patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor" | "avatarData">>,
 ) {
   const sb = createClient();
   if (!sb) return;
-  const row: Record<string, string> = {};
+  const row: Record<string, string | null> = {};
   if (patch.displayName !== undefined) row.display_name = patch.displayName;
   if (patch.theme !== undefined) row.theme = patch.theme;
   if (patch.accentColor !== undefined) row.accent_color = patch.accentColor;
+  if (patch.avatarData !== undefined) row.avatar_url = patch.avatarData || null;
   if (Object.keys(row).length === 0) return;
   await sb.from("profiles").update(row).eq("id", userId);
 }

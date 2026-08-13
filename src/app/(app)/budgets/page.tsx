@@ -31,6 +31,14 @@ export default function BudgetsPage() {
     (b) => workspaceIds.has(b.workspaceId) && b.periodYear === year && b.periodMonth === month,
   );
 
+  const totalLimit = budgets.reduce((s, b) => s + b.limitAmount, 0);
+  const totalSpent = budgets.reduce(
+    (s, b) => s + spentInCategory(b.categoryId, year, month),
+    0,
+  );
+  const totalPct = totalLimit ? Math.min(100, Math.round((totalSpent / totalLimit) * 100)) : 0;
+  const remaining = Math.max(0, totalLimit - totalSpent);
+
   function closeForm() {
     setFormOpen(false);
     setEditingId(null);
@@ -54,33 +62,71 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl">Presupuestos</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Presupuestos</h1>
           <p className="muted mt-0.5 text-sm capitalize">{monthLabel(year, month)}</p>
         </div>
-        <ManageToggle active={managing} onChange={setManaging} />
+        <div className="flex items-center gap-2">
+          <ManageToggle active={managing} onChange={setManaging} />
+          <button
+            type="button"
+            className="btn btn-primary text-sm"
+            onClick={() => {
+              setEditingId(null);
+              setCategoryId("");
+              setLimitAmount("");
+              setFormOpen(true);
+            }}
+          >
+            +
+          </button>
+        </div>
       </div>
 
-      <button
-        type="button"
-        className="btn btn-primary text-sm"
-        onClick={() => {
-          setEditingId(null);
-          setCategoryId("");
-          setLimitAmount("");
-          setFormOpen(true);
-        }}
-      >
-        + Nuevo
-      </button>
+      <section className="card p-4 sm:p-5">
+        <p className="muted text-xs font-semibold uppercase tracking-wide">
+          Gasto total mensual
+        </p>
+        <p className="mt-1 text-2xl font-bold tabular-nums">
+          {formatMoney(totalSpent, currency)}
+          <span className="muted text-base font-semibold">
+            {" "}
+            / {formatMoney(totalLimit || 0, currency)}
+          </span>
+        </p>
+        <div className="progress mt-3 h-3">
+          <span
+            style={{
+              width: `${totalPct}%`,
+              background:
+                totalPct >= 100
+                  ? "var(--danger)"
+                  : totalPct >= 80
+                    ? "var(--warning)"
+                    : "var(--accent)",
+            }}
+          />
+        </div>
+        <div className="mt-2 flex justify-between text-xs font-semibold">
+          <span className="muted">{totalPct}% usado</span>
+          <span className={totalPct >= 100 ? "text-danger" : "text-accent"}>
+            {totalPct >= 100
+              ? "Límite alcanzado"
+              : `${formatMoney(remaining, currency)} restantes`}
+          </span>
+        </div>
+      </section>
 
-      <div className="card overflow-hidden">
+      <div>
+        <h2 className="mb-2 px-0.5 text-base font-bold">Desglose por categoría</h2>
         {budgets.length === 0 ? (
-          <p className="muted p-3 text-sm">Sin presupuestos este mes.</p>
+          <div className="card p-4">
+            <p className="muted text-sm">Sin presupuestos este mes.</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-2">
             {budgets.map((b) => {
               const cat =
                 categories.find((c) => c.id === b.categoryId) ??
@@ -88,22 +134,58 @@ export default function BudgetsPage() {
               const spent = spentInCategory(b.categoryId, year, month);
               const pct = Math.min(100, Math.round((spent / b.limitAmount) * 100));
               const over = spent >= b.limitAmount;
+              const near = !over && pct >= 80;
+              const left = Math.max(0, b.limitAmount - spent);
               return (
-                <li key={b.id} className="px-3 py-2">
-                  <div className="flex items-center gap-2">
+                <li key={b.id} className="card p-3.5">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="grid h-10 w-10 place-items-center rounded-full text-sm font-bold text-white"
+                      style={{ background: cat?.color || "var(--accent)" }}
+                    >
+                      {(cat?.name || "?").slice(0, 1).toUpperCase()}
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {cat ? itemLabel(cat.workspaceId, cat.name) : "Categoría"}
-                      </p>
-                      <p className={`text-[11px] tabular-nums ${over ? "text-danger" : "muted"}`}>
-                        {formatMoney(spent, currency)} / {formatMoney(b.limitAmount, currency)} · {pct}%
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate text-sm font-semibold">
+                          {cat ? itemLabel(cat.workspaceId, cat.name) : "Categoría"}
+                        </p>
+                        <p className="shrink-0 text-xs font-semibold tabular-nums">
+                          {formatMoney(spent, currency)} de {formatMoney(b.limitAmount, currency)}
+                        </p>
+                      </div>
+                      <div className="progress mt-2 h-2">
+                        <span
+                          style={{
+                            width: `${pct}%`,
+                            background: over
+                              ? "var(--danger)"
+                              : near
+                                ? "var(--warning)"
+                                : "var(--accent)",
+                          }}
+                        />
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold">
+                        <span className="muted">{pct}% usado</span>
+                        <span
+                          className={
+                            over ? "text-danger" : near ? "text-warning" : "text-accent"
+                          }
+                        >
+                          {over
+                            ? "Límite excedido"
+                            : near
+                              ? "Cerca del límite"
+                              : `${formatMoney(left, currency)} restantes`}
+                        </span>
+                      </div>
                     </div>
                     {managing && (
-                      <div className="flex shrink-0 gap-1">
+                      <div className="flex shrink-0 flex-col gap-1">
                         <button
                           type="button"
-                          className="rounded-md border border-border p-1.5"
+                          className="rounded-lg border border-border p-1.5"
                           onClick={() => startEdit(b.id, b.categoryId, b.limitAmount)}
                           aria-label="Editar"
                         >
@@ -111,7 +193,7 @@ export default function BudgetsPage() {
                         </button>
                         <button
                           type="button"
-                          className="rounded-md border border-red-300 bg-red-50 p-1.5 text-red-700"
+                          className="rounded-lg border border-red-300 bg-red-50 p-1.5 text-red-700"
                           onClick={() => deleteBudget(b.id)}
                           aria-label="Eliminar"
                         >
@@ -119,18 +201,6 @@ export default function BudgetsPage() {
                         </button>
                       </div>
                     )}
-                  </div>
-                  <div className="progress mt-1.5 h-1.5">
-                    <span
-                      style={{
-                        width: `${pct}%`,
-                        background: over
-                          ? "var(--danger)"
-                          : pct >= 80
-                            ? "var(--warning)"
-                            : "var(--accent)",
-                      }}
-                    />
                   </div>
                 </li>
               );

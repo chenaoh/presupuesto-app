@@ -1,13 +1,20 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { Camera, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { UserAvatar } from "@/components/UserAvatar";
 import { ACCENT_PRESETS } from "@/lib/constants";
+import { fileToAvatarDataUrl } from "@/lib/avatar";
 import { useApp } from "@/lib/store";
 import type { ThemeMode } from "@/lib/types";
 
 export default function SettingsPage() {
   const { user, updateProfile } = useApp();
   const { setTheme } = useTheme();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   if (!user) return null;
 
@@ -16,14 +23,14 @@ export default function SettingsPage() {
     updateProfile({ theme: mode });
     const root = document.documentElement;
     root.dataset.theme = mode;
-    const accent = user.accentColor || "#0D9488";
+    const accent = user.accentColor || "#1F6B4F";
     if (mode === "custom") {
       setTheme("light");
       root.classList.remove("dark");
-      root.style.setProperty("--bg", `color-mix(in oklab, ${accent} 12%, #dce7f0)`);
+      root.style.setProperty("--bg", `color-mix(in oklab, ${accent} 10%, #f2f7f4)`);
       root.style.setProperty("--bg-elevated", "#ffffff");
-      root.style.setProperty("--fg", "#0b1220");
-      root.style.setProperty("--border", `color-mix(in oklab, ${accent} 42%, #94a3b8)`);
+      root.style.setProperty("--fg", "#10231c");
+      root.style.setProperty("--border", `color-mix(in oklab, ${accent} 28%, #c5d5cc)`);
     } else if (mode === "light") {
       setTheme("light");
       root.classList.remove("dark");
@@ -47,15 +54,75 @@ export default function SettingsPage() {
     root.style.removeProperty("--shadow");
   }
 
+  async function onAvatarChange(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Selecciona una imagen (JPG o PNG).");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setAvatarError("La imagen es muy pesada (máx. 8 MB).");
+      return;
+    }
+    setSavingAvatar(true);
+    setAvatarError(null);
+    try {
+      const dataUrl = await fileToAvatarDataUrl(file);
+      updateProfile({ avatarData: dataUrl });
+    } catch {
+      setAvatarError("No se pudo procesar la foto.");
+    } finally {
+      setSavingAvatar(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl sm:text-3xl">Ajustes</h1>
-        <p className="muted mt-0.5 text-sm">Perfil y apariencia.</p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Perfil</h1>
+        <p className="muted mt-0.5 text-sm">Foto, nombre y apariencia.</p>
       </div>
 
-      <section className="card space-y-3 p-3 sm:p-4">
-        <h2 className="text-base font-semibold">Perfil</h2>
+      <section className="card space-y-4 p-4 sm:p-5">
+        <h2 className="text-base font-bold">Tu foto</h2>
+        <div className="flex items-center gap-4">
+          <UserAvatar src={user.avatarData} name={user.displayName} size={72} />
+          <div className="min-w-0 space-y-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => void onAvatarChange(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              className="btn btn-primary text-sm"
+              disabled={savingAvatar}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Camera size={15} />
+              {savingAvatar ? "Guardando…" : user.avatarData ? "Cambiar foto" : "Cargar foto"}
+            </button>
+            {user.avatarData && (
+              <button
+                type="button"
+                className="btn btn-ghost text-sm"
+                onClick={() => updateProfile({ avatarData: "" })}
+              >
+                <Trash2 size={14} />
+                Quitar foto
+              </button>
+            )}
+            {avatarError && <p className="text-xs text-danger">{avatarError}</p>}
+            <p className="muted text-xs">Se usa en inicio y en la barra inferior.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="card space-y-3 p-4 sm:p-5">
+        <h2 className="text-base font-bold">Datos</h2>
         <div>
           <label className="label">Nombre para mostrar</label>
           <input
@@ -68,8 +135,8 @@ export default function SettingsPage() {
         <p className="muted text-xs">{user.email}</p>
       </section>
 
-      <section className="card space-y-3 p-3 sm:p-4">
-        <h2 className="text-base font-semibold">Tema</h2>
+      <section className="card space-y-3 p-4 sm:p-5">
+        <h2 className="text-base font-bold">Tema</h2>
         <div className="flex flex-wrap gap-2">
           {(["system", "light", "dark", "custom"] as ThemeMode[]).map((mode) => (
             <button
@@ -117,13 +184,6 @@ export default function SettingsPage() {
             />
           </div>
         </div>
-      </section>
-
-      <section className="card space-y-1 p-3 sm:p-4">
-        <h2 className="text-base font-semibold">Datos</h2>
-        <p className="muted text-xs">
-          Datos locales. Moneda: {user.currency}.
-        </p>
       </section>
     </div>
   );

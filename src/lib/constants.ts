@@ -48,10 +48,10 @@ export const BASE_CATEGORIES: Array<{
 ];
 
 export const ACCENT_PRESETS = [
+  "#1F6B4F",
   "#0D9488",
   "#2563EB",
   "#D97706",
   "#E11D48",
   "#059669",
-  "#7C3AED",
 ];

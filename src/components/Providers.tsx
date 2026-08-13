@@ -10,7 +10,7 @@ function AccentSync({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    const accent = user?.accentColor || "#0D9488";
+    const accent = user?.accentColor || "#1F6B4F";
     root.style.setProperty("--accent", accent);
 
     if (!user) return;
@@ -20,10 +20,10 @@ function AccentSync({ children }: { children: ReactNode }) {
     if (user.theme === "custom") {
       setTheme("light");
       root.classList.remove("dark");
-      root.style.setProperty("--bg", `color-mix(in oklab, ${accent} 12%, #dce7f0)`);
+      root.style.setProperty("--bg", `color-mix(in oklab, ${accent} 10%, #f2f7f4)`);
       root.style.setProperty("--bg-elevated", "#ffffff");
-      root.style.setProperty("--fg", "#0b1220");
-      root.style.setProperty("--border", `color-mix(in oklab, ${accent} 42%, #94a3b8)`);
+      root.style.setProperty("--fg", "#10231c");
+      root.style.setProperty("--border", `color-mix(in oklab, ${accent} 28%, #c5d5cc)`);
       root.style.setProperty(
         "--shadow",
         `0 14px 36px color-mix(in oklab, ${accent} 28%, transparent)`,

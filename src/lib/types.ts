@@ -28,6 +28,8 @@ export interface Profile {
   locale: string;
   currency: string;
   createdAt: string;
+  /** Foto de perfil (data URL). */
+  avatarData?: string;
 }
 
 export interface Workspace {

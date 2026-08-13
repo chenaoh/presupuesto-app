@@ -79,7 +79,9 @@ type AppContextValue = {
   login: (email: string, password: string) => Promise<string | null>;
   logout: () => void;
   setActiveWorkspace: (workspaceId: string) => void;
-  updateProfile: (patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor">>) => void;
+  updateProfile: (
+    patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor" | "avatarData">>,
+  ) => void;
   createSharedWorkspace: (name: string) => Promise<string | null>;
   createInvite: () => Promise<string | null>;
   acceptInvite: (code: string) => Promise<string | null>;
@@ -309,7 +311,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             passwordHash,
             displayName: displayName.trim(),
             theme: "system",
-            accentColor: "#0D9488",
+            accentColor: "#1F6B4F",
             locale: "es-CO",
             currency: "COP",
             createdAt: now,
@@ -400,7 +402,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateProfile = useCallback(
-    (patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor">>) => {
+    (patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor" | "avatarData">>) => {
       if (!user) return;
       if (cloudEnabled()) void cloudUpdateProfile(user.id, patch);
       persist((prev) => ({

@@ -4,9 +4,9 @@ import { FormEvent, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
-import { NeedAccountsBanner } from "@/components/NeedAccountsBanner";
 import { formatMoney } from "@/lib/format";
 import { useApp } from "@/lib/store";
+import { useRequireAccounts } from "@/lib/useRequireAccounts";
 import type { SavingsGoal } from "@/lib/types";
 
 export default function SavingsPage() {
@@ -37,8 +37,10 @@ export default function SavingsPage() {
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
   const accounts = allAccounts();
-  const hasAccounts = accounts.length > 0;
   const goals = workspaceGoals();
+  const { guard, dialog } = useRequireAccounts(
+    "Para aportar o retirar de una meta primero debes crear al menos una cuenta.",
+  );
 
   function closeForm() {
     setFormOpen(false);
@@ -140,22 +142,13 @@ export default function SavingsPage() {
         <button
           type="button"
           className="btn btn-ghost text-sm"
-          onClick={() => {
-            if (!hasAccounts) {
-              setError("Primero crea al menos una cuenta en Cuentas.");
-              return;
-            }
-            setMoveOpen(true);
-          }}
-          disabled={!hasAccounts}
+          onClick={() => guard(() => setMoveOpen(true))}
         >
           Aportar / retirar
         </button>
       </div>
 
-      {!hasAccounts && (
-        <NeedAccountsBanner message="Para aportar o retirar de una meta necesitas al menos una cuenta." />
-      )}
+      {dialog}
 
       {error && !formOpen && !moveOpen && <p className="text-xs text-danger">{error}</p>}
 

@@ -86,9 +86,10 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     tip: "Con Supabase configurado, el código funciona entre celulares y la web desplegada.",
   },
   "/settings": {
-    title: "Ajustes",
-    summary: "Nombre visible, tema y color de acento de la app.",
+    title: "Perfil",
+    summary: "Foto, nombre visible, tema y color de acento de la app.",
     steps: [
+      "Carga una foto para tu cuenta personal (aparece en Inicio y en la barra).",
       "Cambia tu nombre para que otros miembros te reconozcan en espacios compartidos.",
       "Elige tema claro, oscuro, sistema o personalizado.",
       "El color de acento se aplica a botones y detalles de la interfaz.",
