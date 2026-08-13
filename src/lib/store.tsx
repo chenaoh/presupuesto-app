@@ -113,8 +113,11 @@ type AppContextValue = {
   addTransaction: (input: CreateTransactionInput) => string | null;
   updateTransaction: (id: string, input: CreateTransactionInput) => string | null;
   deleteTransaction: (id: string) => string | null;
-  /** Clona un movimiento con otra fecha (gastos/ingresos recurrentes). */
-  repeatTransaction: (id: string, date?: string) => string | null;
+  /** Clona un movimiento recurrente; permite ajustar fecha, monto y descripción. */
+  repeatTransaction: (
+    id: string,
+    overrides?: { date?: string; amount?: number; note?: string },
+  ) => string | null;
   setTransactionRecurring: (id: string, recurring: boolean) => void;
   upsertBudget: (categoryId: string, limitAmount: number, year?: number, month?: number) => void;
   deleteBudget: (id: string) => void;
@@ -1257,16 +1260,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const repeatTransaction = useCallback(
-    (id: string, date?: string) => {
+    (id: string, overrides?: { date?: string; amount?: number; note?: string }) => {
       if (!user) return "Sesión inválida.";
       const original = data.transactions.find((t) => t.id === id);
       if (!original) return "Movimiento no encontrado.";
 
+      const amount = overrides?.amount ?? original.amount;
+      if (!amount || amount <= 0) return "El monto debe ser mayor a 0.";
+
       return addTransaction({
         type: original.type,
-        amount: original.amount,
-        date: date || new Date().toISOString().slice(0, 10),
-        note: original.note,
+        amount,
+        date: overrides?.date || new Date().toISOString().slice(0, 10),
+        note: overrides?.note !== undefined ? overrides.note : original.note,
         categoryId: original.categoryId,
         accountId: original.accountId,
         toAccountId: original.toAccountId,

@@ -61,6 +61,8 @@ export default function TransactionsPage() {
   const [filterAccountId, setFilterAccountId] = useState("");
   const [repeatId, setRepeatId] = useState<string | null>(null);
   const [repeatDate, setRepeatDate] = useState(new Date().toISOString().slice(0, 10));
+  const [repeatAmount, setRepeatAmount] = useState("");
+  const [repeatNote, setRepeatNote] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -184,15 +186,33 @@ export default function TransactionsPage() {
     closeForm();
   }
 
+  function openRepeat(tx: Transaction) {
+    setRepeatId(tx.id);
+    setRepeatDate(new Date().toISOString().slice(0, 10));
+    setRepeatAmount(String(tx.amount));
+    setRepeatNote(tx.note ?? "");
+    setError(null);
+  }
+
   function confirmRepeat() {
     if (!repeatId) return;
-    const err = repeatTransaction(repeatId, repeatDate);
+    const amount = Number(repeatAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("El monto debe ser mayor a 0.");
+      return;
+    }
+    const err = repeatTransaction(repeatId, {
+      date: repeatDate,
+      amount,
+      note: repeatNote.trim(),
+    });
     if (err) {
       setError(err);
       return;
     }
     setMessage(`Repetido (${repeatDate}).`);
     setRepeatId(null);
+    setError(null);
   }
 
   function onDelete(id: string) {
@@ -439,10 +459,7 @@ export default function TransactionsPage() {
                       type="button"
                       className="rounded-md border border-border p-1.5 muted hover:text-fg"
                       title="Repetir"
-                      onClick={() => {
-                        setRepeatId(tx.id);
-                        setRepeatDate(new Date().toISOString().slice(0, 10));
-                      }}
+                      onClick={() => openRepeat(tx)}
                     >
                       <Repeat2 size={13} />
                     </button>
@@ -723,6 +740,9 @@ export default function TransactionsPage() {
 
       <Modal open={!!repeatId} onClose={() => setRepeatId(null)} title="Repetir movimiento">
         <div className="space-y-3">
+          <p className="muted text-xs">
+            Se copia el tipo, categoría y cuentas. Puedes ajustar fecha, monto y descripción.
+          </p>
           <div>
             <label className="label">Nueva fecha</label>
             <input
@@ -732,6 +752,30 @@ export default function TransactionsPage() {
               onChange={(e) => setRepeatDate(e.target.value)}
             />
           </div>
+          <div>
+            <label className="label">Monto</label>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              value={repeatAmount}
+              onChange={(e) => setRepeatAmount(e.target.value)}
+              placeholder="Ej: 150000"
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Descripción</label>
+            <input
+              className="input"
+              value={repeatNote}
+              onChange={(e) => setRepeatNote(e.target.value)}
+              placeholder="Ej: Arriendo marzo, Netflix"
+            />
+          </div>
+          {error && <p className="text-xs text-danger">{error}</p>}
           <button type="button" className="btn btn-primary w-full" onClick={confirmRepeat}>
             Confirmar
           </button>
