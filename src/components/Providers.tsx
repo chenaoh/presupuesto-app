@@ -5,12 +5,12 @@ import { useEffect, type ReactNode } from "react";
 import { useApp } from "@/lib/store";
 
 function AccentSync({ children }: { children: ReactNode }) {
-  const { user } = useApp();
+  const { user, workspace } = useApp();
   const { setTheme } = useTheme();
 
   useEffect(() => {
     const root = document.documentElement;
-    const accent = user?.accentColor || "#1F6B4F";
+    const accent = workspace?.accentColor || user?.accentColor || "#1F6B4F";
     root.style.setProperty("--accent", accent);
 
     if (!user) return;
@@ -52,7 +52,7 @@ function AccentSync({ children }: { children: ReactNode }) {
       root.style.removeProperty("--border");
       root.style.removeProperty("--shadow");
     }
-  }, [setTheme, user]);
+  }, [setTheme, user, workspace?.accentColor, workspace?.id]);
 
   return <>{children}</>;
 }

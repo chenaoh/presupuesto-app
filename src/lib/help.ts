@@ -87,23 +87,25 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
   },
   "/workspaces": {
     title: "Espacios",
-    summary: "Separa lo personal de lo familiar (o varios espacios compartidos).",
+    summary: "Separa lo personal de lo familiar y personaliza cada espacio.",
     steps: [
       "Tu espacio Personal es privado.",
       "Crea un espacio familiar e invita con un código (7 días, un uso).",
-      "Otra persona se registra en la misma app y une el código.",
+      "En Gestionar → lápiz: sube una imagen y elige un color propio del espacio.",
+      "Al cambiar de espacio, el color y la imagen del encabezado te indican dónde estás.",
       "Solo el dueño puede eliminar un espacio compartido.",
     ],
     tip: "Con Supabase configurado, el código funciona entre celulares y la web desplegada.",
   },
   "/settings": {
     title: "Perfil",
-    summary: "Foto, nombre visible, tema y color de acento de la app.",
+    summary: "Foto, nombre visible, tema claro/oscuro y color de acento personal.",
     steps: [
       "Carga una foto para tu cuenta personal (aparece en Inicio y en la barra).",
       "Cambia tu nombre para que otros miembros te reconozcan en espacios compartidos.",
       "Elige tema claro, oscuro, sistema o personalizado.",
-      "El color de acento se aplica a botones y detalles de la interfaz.",
+      "El color de acento del perfil se usa si el espacio activo no tiene color propio.",
+      "Para imagen y color del espacio, ve a Espacios → Gestionar.",
     ],
   },
 };

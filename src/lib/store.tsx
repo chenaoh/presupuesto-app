@@ -21,6 +21,7 @@ import {
   cloudLogout,
   cloudRegister,
   cloudUpdateProfile,
+  cloudUpdateWorkspace,
   cloudWrite,
   loadCloudData,
   newEntityId,
@@ -135,6 +136,10 @@ type AppContextValue = {
   ) => string | null;
   deleteSavingsGoal: (id: string) => string | null;
   renameWorkspace: (id: string, name: string) => string | null;
+  updateWorkspace: (
+    id: string,
+    patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor">>,
+  ) => string | null;
   deleteWorkspace: (id: string) => string | null;
   accountBalance: (accountId: string) => number;
   goalProgress: (goalId: string) => number;
@@ -1520,25 +1525,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [data.transactions, persist],
   );
 
-  const renameWorkspace = useCallback(
-    (id: string, name: string) => {
-      const trimmed = name.trim();
-      if (!trimmed) return "Nombre inválido.";
+  const updateWorkspace = useCallback(
+    (id: string, patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor">>) => {
       const ws = data.workspaces.find((w) => w.id === id);
       if (!ws) return "Espacio no encontrado.";
-      if (ws.type === "personal" && trimmed.toLowerCase() === "personal") {
-        // ok
-      }
+      const nextName = patch.name !== undefined ? patch.name.trim() : undefined;
+      if (patch.name !== undefined && !nextName) return "Nombre inválido.";
+
       persist((prev) => ({
         ...prev,
-        workspaces: prev.workspaces.map((w) => (w.id === id ? { ...w, name: trimmed } : w)),
+        workspaces: prev.workspaces.map((w) => {
+          if (w.id !== id) return w;
+          const merged = { ...w };
+          if (nextName !== undefined) merged.name = nextName;
+          if (patch.avatarData !== undefined) {
+            if (patch.avatarData) merged.avatarData = patch.avatarData;
+            else delete merged.avatarData;
+          }
+          if (patch.accentColor !== undefined) {
+            if (patch.accentColor) merged.accentColor = patch.accentColor;
+            else delete merged.accentColor;
+          }
+          return merged;
+        }),
       }));
-      cloudWrite(() =>
-        createClient()!.from("workspaces").update({ name: trimmed }).eq("id", id),
-      );
+      if (cloudEnabled()) {
+        void cloudUpdateWorkspace(id, {
+          ...(nextName !== undefined ? { name: nextName } : {}),
+          ...(patch.avatarData !== undefined ? { avatarData: patch.avatarData } : {}),
+          ...(patch.accentColor !== undefined ? { accentColor: patch.accentColor } : {}),
+        });
+      }
       return null;
     },
     [data.workspaces, persist],
+  );
+
+  const renameWorkspace = useCallback(
+    (id: string, name: string) => updateWorkspace(id, { name }),
+    [updateWorkspace],
   );
 
   const deleteWorkspace = useCallback(
@@ -1725,6 +1750,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateSavingsGoal,
     deleteSavingsGoal,
     renameWorkspace,
+    updateWorkspace,
     deleteWorkspace,
     accountBalance,
     goalProgress,

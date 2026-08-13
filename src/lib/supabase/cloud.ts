@@ -60,6 +60,8 @@ function mapWorkspace(row: {
   type: string;
   created_by: string;
   created_at: string;
+  avatar_url?: string | null;
+  accent_color?: string | null;
 }): Workspace {
   return {
     id: row.id,
@@ -67,6 +69,8 @@ function mapWorkspace(row: {
     type: row.type as Workspace["type"],
     createdBy: row.created_by,
     createdAt: row.created_at,
+    avatarData: row.avatar_url ?? undefined,
+    accentColor: row.accent_color ?? undefined,
   };
 }
 
@@ -611,6 +615,20 @@ export async function cloudUpdateProfile(
   if (patch.avatarData !== undefined) row.avatar_url = patch.avatarData || null;
   if (Object.keys(row).length === 0) return;
   await sb.from("profiles").update(row).eq("id", userId);
+}
+
+export async function cloudUpdateWorkspace(
+  workspaceId: string,
+  patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor">>,
+) {
+  const sb = createClient();
+  if (!sb) return;
+  const row: Record<string, string | null> = {};
+  if (patch.name !== undefined) row.name = patch.name;
+  if (patch.avatarData !== undefined) row.avatar_url = patch.avatarData || null;
+  if (patch.accentColor !== undefined) row.accent_color = patch.accentColor || null;
+  if (Object.keys(row).length === 0) return;
+  await sb.from("workspaces").update(row).eq("id", workspaceId);
 }
 
 /** Inserta/actualiza/borra en Supabase sin bloquear la UI si falla (se loguea). */

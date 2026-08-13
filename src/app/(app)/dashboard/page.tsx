@@ -77,10 +77,23 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="muted text-sm">Hola,</p>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{firstName}</h1>
-          <p className="muted mt-0.5 text-xs capitalize">{workspace?.name}</p>
+        <div className="flex items-center gap-2.5">
+          <UserAvatar
+            src={workspace?.avatarData}
+            name={workspace?.name}
+            size={36}
+            accent={workspace?.accentColor}
+          />
+          <div>
+            <p className="muted text-sm">Hola,</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{firstName}</h1>
+            <p
+              className="mt-0.5 text-xs font-semibold capitalize text-accent"
+              style={workspace?.accentColor ? { color: workspace.accentColor } : undefined}
+            >
+              {workspace?.name}
+            </p>
+          </div>
         </div>
         <Link href="/settings" aria-label="Perfil">
           <UserAvatar src={user?.avatarData} name={user?.displayName} size={48} />

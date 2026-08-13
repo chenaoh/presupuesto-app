@@ -157,6 +157,9 @@ export default function SettingsPage() {
         </div>
         <div>
           <label className="label">Color de acento</label>
+          <p className="muted mb-1.5 text-[11px]">
+            Se usa si el espacio activo no tiene color propio (Espacios → Gestionar).
+          </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {ACCENT_PRESETS.map((color) => (
               <button

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -113,19 +112,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="app-shell-header">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
-            <Image
-              src="/brand/logo.png"
-              alt=""
-              width={28}
-              height={28}
-              className="h-7 w-7 rounded-xl object-cover"
-              priority
+            <UserAvatar
+              src={workspace?.avatarData}
+              name={workspace?.name}
+              size={28}
+              accent={workspace?.accentColor}
             />
-            <p className="brand text-sm text-accent sm:text-base">Presupuesto</p>
+            <div className="min-w-0">
+              <p className="brand truncate text-sm text-accent sm:text-base">
+                {workspace?.name ?? "Presupuesto"}
+              </p>
+              <p className="hidden truncate text-[10px] muted sm:block">
+                {workspace?.type === "shared" ? "Familiar" : "Personal"}
+              </p>
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <select
               className="select max-w-[120px] px-1.5 py-1 text-[10px] sm:max-w-[180px] sm:text-xs"
+              style={
+                workspace?.accentColor
+                  ? {
+                      borderColor: workspace.accentColor,
+                      boxShadow: `0 0 0 1px color-mix(in oklab, ${workspace.accentColor} 35%, transparent)`,
+                    }
+                  : undefined
+              }
               value={workspace?.id ?? ""}
               onChange={(e) => setActiveWorkspace(e.target.value)}
               aria-label="Espacio"

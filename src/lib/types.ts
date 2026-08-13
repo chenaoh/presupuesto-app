@@ -46,6 +46,10 @@ export interface Workspace {
   type: WorkspaceType;
   createdBy: string;
   createdAt: string;
+  /** Imagen del espacio (data URL). */
+  avatarData?: string;
+  /** Color de acento del espacio; si falta, se usa el del perfil. */
+  accentColor?: string;
 }
 
 export interface WorkspaceMember {

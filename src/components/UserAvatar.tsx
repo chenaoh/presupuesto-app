@@ -8,9 +8,17 @@ type Props = {
   name?: string;
   size?: number;
   className?: string;
+  /** Color propio (p. ej. acento del espacio) para listas donde el global aún no aplica. */
+  accent?: string;
 };
 
-export function UserAvatar({ src, name, size = 36, className }: Props) {
+export function UserAvatar({
+  src,
+  name,
+  size = 36,
+  className,
+  accent,
+}: Props) {
   const initials = (name ?? "")
     .split(/\s+/)
     .filter(Boolean)
@@ -24,7 +32,17 @@ export function UserAvatar({ src, name, size = 36, className }: Props) {
         "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color-mix(in_oklab,var(--accent)_18%,white)] text-accent",
         className,
       )}
-      style={{ width: size, height: size }}
+      style={{
+        width: size,
+        height: size,
+        ...(accent
+          ? {
+              background: `color-mix(in oklab, ${accent} 18%, white)`,
+              color: accent,
+              boxShadow: `0 0 0 2px ${accent}`,
+            }
+          : undefined),
+      }}
       aria-hidden={!name}
     >
       {src ? (
