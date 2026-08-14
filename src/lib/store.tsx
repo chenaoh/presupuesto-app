@@ -23,6 +23,7 @@ import {
   cloudUpdateProfile,
   cloudUpdateWorkspace,
   cloudWrite,
+  flushCloudWrites,
   loadCloudData,
   newEntityId,
   writeActiveWorkspaceId,
@@ -49,6 +50,15 @@ import { EMPTY_DATA } from "./types";
 
 function makeId(prefix: string) {
   return cloudEnabled() ? newEntityId() : uid(prefix);
+}
+
+/** En cloud los ids deben ser UUID; los locales tipo `bud_…` fallan al guardar. */
+function ensurePersistedId(id: string | undefined, prefix: string) {
+  if (!id) return makeId(prefix);
+  if (!cloudEnabled()) return id;
+  const uuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuid.test(id) ? id : makeId(prefix);
 }
 
 type RegisterInput = {
@@ -272,6 +282,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshCloud = useCallback(async () => {
     const sb = createClient();
     if (!sb) return;
+    await flushCloudWrites();
     const {
       data: { session },
     } = await sb.auth.getSession();
@@ -1326,25 +1337,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const y = year ?? period.year;
       const m = month ?? period.month;
       const amount = Math.round(limitAmount);
-      let budgetId = "";
+      if (amount <= 0) return;
+
+      const existing = data.budgets.find(
+        (b) =>
+          b.workspaceId === wsId &&
+          b.categoryId === categoryId &&
+          b.periodYear === y &&
+          b.periodMonth === m,
+      );
+      const budgetId = ensurePersistedId(existing?.id, "bud");
+
       persist((prev) => {
-        const existing = prev.budgets.find(
+        const found = prev.budgets.find(
           (b) =>
             b.workspaceId === wsId &&
             b.categoryId === categoryId &&
             b.periodYear === y &&
             b.periodMonth === m,
         );
-        if (existing) {
-          budgetId = existing.id;
+        if (found) {
           return {
             ...prev,
             budgets: prev.budgets.map((b) =>
-              b.id === existing.id ? { ...b, limitAmount: amount } : b,
+              b.id === found.id ? { ...b, id: budgetId, limitAmount: amount } : b,
             ),
           };
         }
-        budgetId = uid("bud");
         return {
           ...prev,
           budgets: [
@@ -1360,20 +1379,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ],
         };
       });
-      cloudWrite(() => {
-        const sb = createClient()!;
-        if (!budgetId) return Promise.resolve({ error: null });
-        return sb.from("budgets").upsert({
+      cloudWrite(() =>
+        createClient()!.from("budgets").upsert({
           id: budgetId,
           workspace_id: wsId,
           category_id: categoryId,
           period_year: y,
           period_month: m,
           limit_amount: amount,
-        });
-      });
+        }),
+      );
     },
-    [data.categories, persist, workspace],
+    [data.budgets, data.categories, persist, workspace],
   );
 
   const deleteBudget = useCallback(
@@ -1411,26 +1428,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const y = input.year ?? period.year;
       const m = input.month ?? period.month;
       const amount = Math.round(input.limitAmount);
-      let budgetId = "";
+      if (amount <= 0) return "El monto debe ser mayor a 0.";
+      const list = data.workspaceBudgets ?? [];
+      const existing = list.find(
+        (b) => b.workspaceId === target.id && b.periodYear === y && b.periodMonth === m,
+      );
+      const budgetId = ensurePersistedId(existing?.id, "wbud");
       persist((prev) => {
-        const list = prev.workspaceBudgets ?? [];
-        const existing = list.find(
+        const current = prev.workspaceBudgets ?? [];
+        const found = current.find(
           (b) => b.workspaceId === target.id && b.periodYear === y && b.periodMonth === m,
         );
-        if (existing) {
-          budgetId = existing.id;
+        if (found) {
           return {
             ...prev,
-            workspaceBudgets: list.map((b) =>
-              b.id === existing.id ? { ...b, limitAmount: amount } : b,
+            workspaceBudgets: current.map((b) =>
+              b.id === found.id ? { ...b, id: budgetId, limitAmount: amount } : b,
             ),
           };
         }
-        budgetId = makeId("wbud");
         return {
           ...prev,
           workspaceBudgets: [
-            ...list,
+            ...current,
             {
               id: budgetId,
               workspaceId: target.id,
@@ -1452,7 +1472,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
       return null;
     },
-    [data.members, data.workspaces, persist, user],
+    [data.members, data.workspaceBudgets, data.workspaces, persist, user],
   );
 
   const deleteWorkspaceBudget = useCallback(
@@ -1661,6 +1681,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!data.savingsGoals.some((g) => g.id === id)) return "Meta no encontrada.";
       if (patch.name !== undefined && !patch.name.trim()) return "Nombre inválido.";
       if (patch.targetAmount !== undefined && patch.targetAmount <= 0) return "Monto inválido.";
+      const name = patch.name?.trim();
+      const targetAmount =
+        patch.targetAmount !== undefined ? Math.round(patch.targetAmount) : undefined;
       persist((prev) => ({
         ...prev,
         savingsGoals: prev.savingsGoals.map((g) =>
@@ -1668,15 +1691,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ? {
                 ...g,
                 ...patch,
-                name: patch.name?.trim() ?? g.name,
-                targetAmount:
-                  patch.targetAmount !== undefined
-                    ? Math.round(patch.targetAmount)
-                    : g.targetAmount,
+                name: name ?? g.name,
+                targetAmount: targetAmount ?? g.targetAmount,
               }
             : g,
         ),
       }));
+      cloudWrite(() =>
+        createClient()!
+          .from("savings_goals")
+          .update({
+            ...(name !== undefined ? { name } : {}),
+            ...(targetAmount !== undefined ? { target_amount: targetAmount } : {}),
+            ...(patch.targetDate !== undefined
+              ? { target_date: patch.targetDate || null }
+              : {}),
+            ...(patch.preferredAccountId !== undefined
+              ? { preferred_account_id: patch.preferredAccountId ?? null }
+              : {}),
+          })
+          .eq("id", id),
+      );
       return null;
     },
     [data.savingsGoals, persist],
@@ -1692,12 +1727,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             g.id === id ? { ...g, isArchived: true } : g,
           ),
         }));
+        cloudWrite(() =>
+          createClient()!.from("savings_goals").update({ is_archived: true }).eq("id", id),
+        );
         return null;
       }
       persist((prev) => ({
         ...prev,
         savingsGoals: prev.savingsGoals.filter((g) => g.id !== id),
       }));
+      cloudWrite(() => createClient()!.from("savings_goals").delete().eq("id", id));
       return null;
     },
     [data.transactions, persist],

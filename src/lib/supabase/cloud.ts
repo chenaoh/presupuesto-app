@@ -660,11 +660,20 @@ export async function cloudUpdateWorkspace(
 }
 
 /** Inserta/actualiza/borra en Supabase sin bloquear la UI si falla (se loguea). */
+let cloudWriteChain: Promise<void> = Promise.resolve();
+
 export function cloudWrite(
   op: () => PromiseLike<{ error: { message: string } | null }>,
 ) {
   if (!cloudEnabled()) return;
-  void Promise.resolve(op()).then(({ error }) => {
+  const run = Promise.resolve(op()).then(({ error }) => {
     if (error) console.error("[supabase]", error.message);
   });
+  cloudWriteChain = cloudWriteChain.then(() => run).catch(() => undefined);
+  void run;
+}
+
+/** Espera a que terminen los writes pendientes antes de recargar desde la nube. */
+export async function flushCloudWrites() {
+  await cloudWriteChain;
 }
