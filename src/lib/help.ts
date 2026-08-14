@@ -63,11 +63,12 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
   "/budgets": {
     title: "Bolsillos y presupuesto",
     summary:
-      "Bolsillos por categoría en cada espacio. En espacios familiares también hay un Presupuesto del espacio aportado desde cuentas personales.",
+      "Bolsillos por categoría, y Presupuesto de espacios familiares alimentado desde cuentas personales.",
     steps: [
-      "Los bolsillos y deudas/ahorros son independientes por espacio.",
-      "En un espacio familiar define el Presupuesto del mes y aporta desde tu cuenta personal.",
-      "Desde tu perfil personal puedes elegir categorías de espacios asociados al registrar movimientos.",
+      "Bolsillos, deudas y ahorros son independientes por espacio.",
+      "Desde tu perfil personal: aporta a un espacio eligiendo espacio + cuenta bancaria.",
+      "En el espacio familiar el saldo total es aportado − gastado (presupuesto del espacio).",
+      "En tu perfil personal el saldo total es la suma de tus cuentas bancarias.",
       "Desde un espacio familiar no se usan categorías de otros perfiles.",
     ],
   },

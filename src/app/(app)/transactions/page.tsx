@@ -41,6 +41,7 @@ export default function TransactionsPage() {
     categoriesFor,
     allAccounts,
     fundingAccounts,
+    sharedWorkspaces,
     workspaceDebts,
     workspaceGoals,
     itemLabel,
@@ -65,6 +66,7 @@ export default function TransactionsPage() {
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterAccountId, setFilterAccountId] = useState("");
   const [categorySpaceId, setCategorySpaceId] = useState("");
+  const [contribTargetSpaceId, setContribTargetSpaceId] = useState("");
   const [repeatId, setRepeatId] = useState<string | null>(null);
   const [repeatDate, setRepeatDate] = useState(todayIso());
   const [repeatAmount, setRepeatAmount] = useState("");
@@ -200,7 +202,9 @@ export default function TransactionsPage() {
     const account = accounts.find((a) => a.id === accountId);
     const targetWorkspaceId =
       type === "space_contribution"
-        ? workspace?.id
+        ? workspace?.type === "shared"
+          ? workspace.id
+          : contribTargetSpaceId || undefined
         : category?.workspaceId ||
           debt?.workspaceId ||
           goal?.workspaceId ||
@@ -625,9 +629,10 @@ export default function TransactionsPage() {
                 }
               }}
             >
-              {TYPES.filter((t) =>
-                t.value === "space_contribution" ? workspace?.type === "shared" : true,
-              ).map((t) => (
+              {TYPES.filter((t) => {
+                if (t.value !== "space_contribution") return true;
+                return workspace?.type === "shared" || sharedWorkspaces().length > 0;
+              }).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -704,10 +709,30 @@ export default function TransactionsPage() {
           )}
 
           {type === "space_contribution" && (
-            <p className="muted text-xs sm:col-span-2">
-              Aporte al presupuesto del espacio activo. Debe salir de una cuenta de tu perfil
-              personal.
-            </p>
+            <div className="space-y-2 sm:col-span-2">
+              <p className="muted text-xs">
+                Aporte al presupuesto de un espacio familiar. Sale de una cuenta de tu perfil
+                personal.
+              </p>
+              {workspace?.type === "personal" && (
+                <div>
+                  <label className="label">Espacio destino</label>
+                  <select
+                    className="select"
+                    value={contribTargetSpaceId}
+                    onChange={(e) => setContribTargetSpaceId(e.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona el espacio</option>
+                    {sharedWorkspaces().map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           )}
 
           {type !== "transfer" && (

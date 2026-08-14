@@ -27,6 +27,10 @@ export default function DashboardPage() {
     spentInCategory,
     workspaceCategories,
     itemLabel,
+    workspaceBudgetBalance,
+    workspaceBudgetFunded,
+    workspaceBudgetSpent,
+    personalAccountsTotal,
   } = useApp();
   const { range, compareRange, label } = usePeriod();
 
@@ -36,9 +40,17 @@ export default function DashboardPage() {
   const compareTxs = filterTxs(allWsTxs, compareRange);
   const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const accountsTotal = workspaceAccounts().reduce((s, a) => s + accountBalance(a.id), 0);
-  const categories = workspaceCategories("expense");
   const { year, month } = rangeAnchorMonth(range);
+  const isShared = workspace?.type === "shared";
+  const isPersonal = workspace?.type === "personal";
+  const accountsTotal = isPersonal
+    ? personalAccountsTotal()
+    : isShared
+      ? workspaceBudgetBalance(workspace?.id, year, month)
+      : workspaceAccounts().reduce((s, a) => s + accountBalance(a.id), 0);
+  const spaceFunded = isShared ? workspaceBudgetFunded(workspace?.id, year, month) : 0;
+  const spaceSpentBudget = isShared ? workspaceBudgetSpent(workspace?.id, year, month) : 0;
+  const categories = workspaceCategories("expense");
   const budgets = workspaceBudgets(year, month);
 
   const byCategory = categories
@@ -128,10 +140,23 @@ export default function DashboardPage() {
       )}
 
       <section className="card balance-hero p-4 sm:p-5">
-        <p className="muted text-xs font-semibold uppercase tracking-wide">Saldo total</p>
+        <p className="muted text-xs font-semibold uppercase tracking-wide">
+          {isShared ? "Saldo del presupuesto" : "Saldo total"}
+        </p>
         <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
           {formatMoney(accountsTotal, currency)}
         </p>
+        {isShared ? (
+          <p className="muted mt-1 text-xs">
+            Aportado {formatMoney(spaceFunded, currency)} − gastado{" "}
+            {formatMoney(spaceSpentBudget, currency)}. Se alimenta con aportes desde cuentas
+            personales de los miembros.
+          </p>
+        ) : isPersonal ? (
+          <p className="muted mt-1 text-xs">
+            Suma de tus cuentas bancarias del perfil personal.
+          </p>
+        ) : null}
         <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-3">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[color-mix(in_oklab,var(--income)_16%,white)] text-income">

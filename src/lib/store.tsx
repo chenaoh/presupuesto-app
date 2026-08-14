@@ -122,12 +122,21 @@ type AppContextValue = {
   setTransactionRecurring: (id: string, recurring: boolean) => void;
   upsertBudget: (categoryId: string, limitAmount: number, year?: number, month?: number) => void;
   deleteBudget: (id: string) => void;
-  upsertWorkspaceBudget: (limitAmount: number, year?: number, month?: number) => string | null;
+  upsertWorkspaceBudget: (input: {
+    workspaceId: string;
+    limitAmount: number;
+    year?: number;
+    month?: number;
+  }) => string | null;
   deleteWorkspaceBudget: (id: string) => void;
   /** Aportado al presupuesto del espacio en el periodo (space_contribution). */
   workspaceBudgetFunded: (workspaceId?: string, year?: number, month?: number) => number;
   /** Gastado en el espacio en el periodo (gastos del espacio). */
   workspaceBudgetSpent: (workspaceId?: string, year?: number, month?: number) => number;
+  /** Saldo disponible del presupuesto del espacio: aportado − gastado. */
+  workspaceBudgetBalance: (workspaceId?: string, year?: number, month?: number) => number;
+  /** Suma de saldos de cuentas bancarias del espacio personal del usuario. */
+  personalAccountsTotal: () => number;
   addDebt: (input: { name: string; principal: number; dueDate?: string; accountId?: string }) => string | null;
   updateDebt: (
     id: string,
@@ -1379,21 +1388,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const upsertWorkspaceBudget = useCallback(
-    (limitAmount: number, year?: number, month?: number) => {
-      if (!workspace) return "Selecciona un espacio.";
-      if (workspace.type !== "shared") {
+    (input: {
+      workspaceId: string;
+      limitAmount: number;
+      year?: number;
+      month?: number;
+    }) => {
+      if (!user) return "Sesión inválida.";
+      const target = data.workspaces.find((w) => w.id === input.workspaceId);
+      if (!target) return "Espacio no encontrado.";
+      if (target.type !== "shared") {
         return "El presupuesto de espacio solo aplica a espacios familiares.";
       }
-      if (!limitAmount || limitAmount < 0) return "Monto inválido.";
+      const allowed = data.members.some(
+        (m) => m.userId === user.id && m.workspaceId === target.id,
+      );
+      if (!allowed) return "No perteneces a ese espacio.";
+      if (input.limitAmount < 0 || !Number.isFinite(input.limitAmount)) {
+        return "Monto inválido.";
+      }
       const period = currentPeriod();
-      const y = year ?? period.year;
-      const m = month ?? period.month;
-      const amount = Math.round(limitAmount);
+      const y = input.year ?? period.year;
+      const m = input.month ?? period.month;
+      const amount = Math.round(input.limitAmount);
       let budgetId = "";
       persist((prev) => {
         const list = prev.workspaceBudgets ?? [];
         const existing = list.find(
-          (b) => b.workspaceId === workspace.id && b.periodYear === y && b.periodMonth === m,
+          (b) => b.workspaceId === target.id && b.periodYear === y && b.periodMonth === m,
         );
         if (existing) {
           budgetId = existing.id;
@@ -1411,7 +1433,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...list,
             {
               id: budgetId,
-              workspaceId: workspace.id,
+              workspaceId: target.id,
               periodYear: y,
               periodMonth: m,
               limitAmount: amount,
@@ -1422,7 +1444,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cloudWrite(() =>
         createClient()!.from("workspace_budgets").upsert({
           id: budgetId,
-          workspace_id: workspace.id,
+          workspace_id: target.id,
           period_year: y,
           period_month: m,
           limit_amount: amount,
@@ -1430,7 +1452,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
       return null;
     },
-    [persist, workspace],
+    [data.members, data.workspaces, persist, user],
   );
 
   const deleteWorkspaceBudget = useCallback(
@@ -1480,6 +1502,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .reduce((s, t) => s + t.amount, 0);
     },
     [data.transactions, workspace?.id],
+  );
+
+  const workspaceBudgetBalance = useCallback(
+    (workspaceId?: string, year?: number, month?: number) =>
+      workspaceBudgetFunded(workspaceId, year, month) -
+      workspaceBudgetSpent(workspaceId, year, month),
+    [workspaceBudgetFunded, workspaceBudgetSpent],
   );
 
   const addDebt = useCallback(
@@ -1781,6 +1810,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [data.accounts, data.transactions],
   );
 
+  const personalAccountsTotal = useCallback(() => {
+    return fundingAccounts().reduce((s, a) => s + accountBalance(a.id), 0);
+  }, [accountBalance, fundingAccounts]);
+
   const goalProgress = useCallback(
     (goalId: string) => {
       return data.transactions.reduce((sum, tx) => {
@@ -1928,6 +1961,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     deleteWorkspaceBudget,
     workspaceBudgetFunded,
     workspaceBudgetSpent,
+    workspaceBudgetBalance,
+    personalAccountsTotal,
     addDebt,
     updateDebt,
     deleteDebt,
