@@ -26,15 +26,5 @@ drop policy if exists "workspace_budgets_member_delete" on public.workspace_budg
 create policy "workspace_budgets_member_delete" on public.workspace_budgets
 for delete using (public.is_workspace_member(workspace_id));
 
--- Aporte al presupuesto del espacio (desde cuenta personal del miembro)
--- Si el check de type existe, hay que recrearlo; usamos drop/add seguro.
-do $$
-begin
-  if exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'transactions' and column_name = 'type'
-  ) then
-    -- Sin constraint de enum en 001 (usa text); no-op si no hay check.
-    null;
-  end if;
-end $$;
+-- Aporte al presupuesto del espacio (desde cuenta personal del miembro).
+-- El check de type se actualiza en 007_space_contribution_type.sql.

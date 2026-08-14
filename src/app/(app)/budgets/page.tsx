@@ -28,8 +28,11 @@ export default function BudgetsPage() {
     fundingAccounts,
     sharedWorkspaces,
     addTransaction,
+    updateTransaction,
+    deleteTransaction,
     accountBalance,
     itemLabel,
+    memberName,
   } = useApp();
   const { year, month } = currentPeriod();
   const [categoryId, setCategoryId] = useState("");
@@ -40,10 +43,12 @@ export default function BudgetsPage() {
   const [spaceFormOpen, setSpaceFormOpen] = useState(false);
   const [spaceFormWorkspaceId, setSpaceFormWorkspaceId] = useState("");
   const [contribOpen, setContribOpen] = useState(false);
+  const [editingContribId, setEditingContribId] = useState<string | null>(null);
   const [contribWorkspaceId, setContribWorkspaceId] = useState("");
   const [contribAmount, setContribAmount] = useState("");
   const [contribAccountId, setContribAccountId] = useState("");
   const [contribNote, setContribNote] = useState("");
+  const [contribDate, setContribDate] = useState(todayIso());
   const [contribError, setContribError] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
   const currency = user?.currency ?? "COP";
@@ -72,17 +77,32 @@ export default function BudgetsPage() {
     ? Math.min(100, Math.round((spaceSpent / spaceLimitAmt) * 100))
     : 0;
 
+  const periodPrefix = `${year}-${String(month).padStart(2, "0")}`;
+
   const myContributions = useMemo(() => {
-    if (!isPersonal || !user) return [];
+    if (!user) return [];
     return data.transactions
       .filter(
         (t) =>
           t.type === "space_contribution" &&
           t.createdBy === user.id &&
-          t.date.startsWith(`${year}-${String(month).padStart(2, "0")}`),
+          t.date.startsWith(periodPrefix) &&
+          (isPersonal || t.workspaceId === workspace?.id),
       )
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [data.transactions, isPersonal, user, year, month]);
+  }, [data.transactions, isPersonal, periodPrefix, user, workspace?.id]);
+
+  const spaceContributions = useMemo(() => {
+    if (!isShared || !workspace) return [];
+    return data.transactions
+      .filter(
+        (t) =>
+          t.type === "space_contribution" &&
+          t.workspaceId === workspace.id &&
+          t.date.startsWith(periodPrefix),
+      )
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [data.transactions, isShared, periodPrefix, workspace]);
 
   const totalLimit = budgets.reduce((s, b) => s + b.limitAmount, 0);
   const totalSpent = budgets.reduce(
@@ -131,13 +151,43 @@ export default function BudgetsPage() {
     setSpaceFormOpen(true);
   }
 
+  function closeContribute() {
+    setContribOpen(false);
+    setEditingContribId(null);
+    setContribAmount("");
+    setContribNote("");
+    setContribDate(todayIso());
+    setContribError(null);
+  }
+
   function openContribute(wsId?: string) {
     setContribError(null);
+    setEditingContribId(null);
     setContribWorkspaceId(wsId || workspace?.id || familySpaces[0]?.id || "");
     setContribAccountId(personalAccounts[0]?.id ?? "");
     setContribAmount("");
     setContribNote("");
+    setContribDate(todayIso());
     setContribOpen(true);
+  }
+
+  function openEditContribute(txId: string) {
+    const tx = data.transactions.find((t) => t.id === txId);
+    if (!tx || !user || tx.createdBy !== user.id) return;
+    setContribError(null);
+    setEditingContribId(tx.id);
+    setContribWorkspaceId(tx.workspaceId);
+    setContribAccountId(tx.accountId ?? personalAccounts[0]?.id ?? "");
+    setContribAmount(String(tx.amount));
+    setContribNote(tx.note ?? "");
+    setContribDate(tx.date);
+    setContribOpen(true);
+  }
+
+  function onDeleteContribute(txId: string) {
+    if (!confirm("¿Quitar este aporte?")) return;
+    const err = deleteTransaction(txId);
+    if (err) setContribError(err);
   }
 
   function onSaveSpaceBudget(e: FormEvent) {
@@ -163,28 +213,28 @@ export default function BudgetsPage() {
 
   function onContribute(e: FormEvent) {
     e.preventDefault();
-    const wsId = isShared ? workspace?.id : contribWorkspaceId;
+    const wsId = isShared && !editingContribId ? workspace?.id : contribWorkspaceId;
     if (!wsId) {
       setContribError("Selecciona el espacio al que aportas.");
       return;
     }
     const target = familySpaces.find((w) => w.id === wsId) || workspace;
-    const err = addTransaction({
-      type: "space_contribution",
+    const payload = {
+      type: "space_contribution" as const,
       amount: Number(contribAmount),
-      date: todayIso(),
+      date: contribDate || todayIso(),
       note: contribNote || `Aporte a ${target?.name ?? "espacio"}`,
       accountId: contribAccountId || undefined,
       targetWorkspaceId: wsId,
-    });
+    };
+    const err = editingContribId
+      ? updateTransaction(editingContribId, payload)
+      : addTransaction(payload);
     if (err) {
       setContribError(err);
       return;
     }
-    setContribOpen(false);
-    setContribAmount("");
-    setContribNote("");
-    setContribError(null);
+    closeContribute();
   }
 
   function workspaceLabelSafe(id: string) {
@@ -290,12 +340,38 @@ export default function BudgetsPage() {
                 Tus aportes este mes
               </p>
               <ul className="space-y-1 text-xs">
-                {myContributions.slice(0, 5).map((t) => (
-                  <li key={t.id} className="flex justify-between gap-2">
-                    <span className="truncate">{t.note || workspaceLabelSafe(t.workspaceId)}</span>
+                {myContributions.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border px-2 py-1.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {t.note || workspaceLabelSafe(t.workspaceId)}
+                      </p>
+                      <p className="muted text-[10px]">{t.date}</p>
+                    </div>
                     <span className="tabular-nums font-semibold">
                       {formatMoney(t.amount, currency)}
                     </span>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        className="rounded-md border border-border p-1 muted hover:text-fg"
+                        title="Editar aporte"
+                        onClick={() => openEditContribute(t.id)}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-red-300 bg-red-50 p-1 text-red-700"
+                        title="Quitar aporte"
+                        onClick={() => onDeleteContribute(t.id)}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -356,6 +432,55 @@ export default function BudgetsPage() {
             El saldo del espacio es lo aportado desde cuentas personales menos los gastos del
             espacio. Cada miembro aporta eligiendo su cuenta bancaria.
           </p>
+          {spaceContributions.length > 0 && (
+            <div>
+              <p className="muted mb-1 text-[11px] font-semibold uppercase tracking-wide">
+                Aportes del mes
+              </p>
+              <ul className="space-y-1 text-xs">
+                {spaceContributions.map((t) => {
+                  const mine = user?.id === t.createdBy;
+                  return (
+                    <li
+                      key={t.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border px-2 py-1.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">
+                          {memberName(t.createdBy)}
+                          {t.note ? ` · ${t.note}` : ""}
+                        </p>
+                        <p className="muted text-[10px]">{t.date}</p>
+                      </div>
+                      <span className="tabular-nums font-semibold">
+                        {formatMoney(t.amount, currency)}
+                      </span>
+                      {mine && (
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            type="button"
+                            className="rounded-md border border-border p-1 muted hover:text-fg"
+                            title="Editar aporte"
+                            onClick={() => openEditContribute(t.id)}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border border-red-300 bg-red-50 p-1 text-red-700"
+                            title="Quitar aporte"
+                            onClick={() => onDeleteContribute(t.id)}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           {managing && spaceBudget && (
             <button
               type="button"
@@ -569,7 +694,11 @@ export default function BudgetsPage() {
         </form>
       </Modal>
 
-      <Modal open={contribOpen} onClose={() => setContribOpen(false)} title="Aportar al espacio">
+      <Modal
+        open={contribOpen}
+        onClose={closeContribute}
+        title={editingContribId ? "Editar aporte" : "Aportar al espacio"}
+      >
         <form onSubmit={onContribute} className="space-y-2">
           <p className="muted text-xs">
             Sale de tu cuenta personal y alimenta el saldo/presupuesto del espacio elegido.
@@ -582,6 +711,7 @@ export default function BudgetsPage() {
                 value={contribWorkspaceId || activeSpaceId}
                 onChange={(e) => setContribWorkspaceId(e.target.value)}
                 required
+                disabled={!!editingContribId && isShared}
               >
                 <option value="">Selecciona el espacio</option>
                 {familySpaces.map((w) => (
@@ -605,6 +735,16 @@ export default function BudgetsPage() {
             }))}
           />
           <div>
+            <label className="label">Fecha</label>
+            <input
+              className="input"
+              type="date"
+              value={contribDate}
+              onChange={(e) => setContribDate(e.target.value)}
+              required
+            />
+          </div>
+          <div>
             <label className="label">Monto</label>
             <input
               className="input"
@@ -626,7 +766,26 @@ export default function BudgetsPage() {
             />
           </div>
           {contribError && <p className="text-xs text-danger">{contribError}</p>}
-          <button className="btn btn-primary w-full">Registrar aporte</button>
+          <button className="btn btn-primary w-full">
+            {editingContribId ? "Guardar cambios" : "Registrar aporte"}
+          </button>
+          {editingContribId && (
+            <button
+              type="button"
+              className="btn btn-ghost w-full text-danger"
+              onClick={() => {
+                if (!confirm("¿Quitar este aporte?")) return;
+                const err = deleteTransaction(editingContribId);
+                if (err) {
+                  setContribError(err);
+                  return;
+                }
+                closeContribute();
+              }}
+            >
+              Quitar aporte
+            </button>
+          )}
         </form>
       </Modal>
     </div>

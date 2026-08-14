@@ -1164,6 +1164,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ) {
         return "Selecciona la meta y la cuenta.";
       }
+      if (input.type === "space_contribution") {
+        if (!input.accountId) return "Selecciona tu cuenta personal para el aporte.";
+        const targetWs = data.workspaces.find((w) => w.id === targetId);
+        if (!targetWs || targetWs.type !== "shared") {
+          return "El aporte solo aplica a un espacio familiar.";
+        }
+        const acc = data.accounts.find((a) => a.id === input.accountId);
+        if (!personal || !acc || acc.workspaceId !== personal.id) {
+          return "El aporte debe salir de una cuenta de tu espacio personal.";
+        }
+      }
 
       if (input.categoryId) {
         const cat = data.categories.find((c) => c.id === input.categoryId);
@@ -1244,11 +1255,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null;
     },
     [
+      data.accounts,
       data.categories,
       data.debts,
       data.members,
       data.savingsGoals,
       data.transactions,
+      data.workspaces,
       myWorkspaces,
       persist,
       user,
@@ -1902,53 +1915,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const workspaceTransactions = useCallback(() => {
     if (!workspace || !user) return [];
 
-    // En espacios familiares: solo movimientos de ese espacio.
+    // Espacio compartido: todos los movimientos de todos los miembros de ese espacio.
     if (workspace.type === "shared") {
-      const wsId = workspace.id;
-      const categoryIds = new Set(
-        data.categories.filter((c) => c.workspaceId === wsId).map((c) => c.id),
-      );
-      const debtIds = new Set(
-        data.debts.filter((d) => d.workspaceId === wsId).map((d) => d.id),
-      );
-      const goalIds = new Set(
-        data.savingsGoals.filter((g) => g.workspaceId === wsId).map((g) => g.id),
-      );
-
       return data.transactions
-        .filter((t) => {
-          if (t.workspaceId !== wsId) return false;
-          if (t.type === "income" || t.type === "expense") {
-            return Boolean(t.categoryId && categoryIds.has(t.categoryId));
-          }
-          if (t.type === "debt_payment") {
-            return Boolean(t.debtId && debtIds.has(t.debtId));
-          }
-          if (t.type === "savings_contribution" || t.type === "savings_withdrawal") {
-            return Boolean(t.savingsGoalId && goalIds.has(t.savingsGoalId));
-          }
-          if (t.type === "space_contribution") return true;
-          return true;
-        })
+        .filter((t) => t.workspaceId === workspace.id)
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
     }
 
-    // Perfil personal: movimientos personales + de espacios asociados (donde eres miembro).
+    // Personal: solo lo que este usuario registró (en su espacio o en espacios asociados).
     const memberWsIds = new Set(
       data.members.filter((m) => m.userId === user.id).map((m) => m.workspaceId),
     );
     return data.transactions
-      .filter((t) => memberWsIds.has(t.workspaceId))
+      .filter((t) => memberWsIds.has(t.workspaceId) && t.createdBy === user.id)
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
-  }, [
-    data.categories,
-    data.debts,
-    data.members,
-    data.savingsGoals,
-    data.transactions,
-    user,
-    workspace,
-  ]);
+  }, [data.members, data.transactions, user, workspace]);
 
   const workspaceBudgets = useCallback(
     (year?: number, month?: number) => {
