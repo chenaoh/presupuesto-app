@@ -2,11 +2,13 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 export type ColorOption = {
   value: string;
   label: string;
   color?: string;
+  icon?: string;
 };
 
 type Props = {
@@ -66,10 +68,14 @@ export function ColorCombo({
         aria-controls={listId}
         onClick={() => setOpen((v) => !v)}
       >
-        <span
-          className="color-combo-swatch"
-          style={{ background: selected?.color || "var(--border)" }}
-        />
+        {selected?.icon ? (
+          <CategoryIcon icon={selected.icon} color={selected.color} size={14} />
+        ) : (
+          <span
+            className="color-combo-swatch"
+            style={{ background: selected?.color || "var(--border)" }}
+          />
+        )}
         <span className={`color-combo-label ${selected ? "" : "is-placeholder"}`}>
           {selected?.label || placeholder}
         </span>
@@ -105,10 +111,14 @@ export function ColorCombo({
                   setOpen(false);
                 }}
               >
-                <span
-                  className="color-combo-swatch"
-                  style={{ background: opt.color || "var(--border)" }}
-                />
+                {opt.icon ? (
+                  <CategoryIcon icon={opt.icon} color={opt.color} size={14} />
+                ) : (
+                  <span
+                    className="color-combo-swatch"
+                    style={{ background: opt.color || "var(--border)" }}
+                  />
+                )}
                 <span className="color-combo-label">{opt.label}</span>
               </button>
             </li>

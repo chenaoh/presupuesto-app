@@ -1,6 +1,6 @@
 # Presupuesto App
 
-App web + PWA para controlar ingresos, gastos, cuentas, presupuestos, deudas y metas de ahorro, con espacios **personal** y **familiar**.
+App web + PWA para controlar ingresos, gastos, cuentas, bolsillos, deudas y metas de ahorro, con espacios **personal** y **familiar**.
 
 ## Stack
 
@@ -29,6 +29,7 @@ Para que una persona se una a tu espacio familiar desde la app desplegada:
    - [`supabase/migrations/003_avatar.sql`](supabase/migrations/003_avatar.sql)
    - [`supabase/migrations/004_payment_method.sql`](supabase/migrations/004_payment_method.sql)
    - [`supabase/migrations/005_workspace_appearance.sql`](supabase/migrations/005_workspace_appearance.sql)
+   - [`supabase/migrations/006_workspace_budgets.sql`](supabase/migrations/006_workspace_budgets.sql)
 3. En **Authentication → Providers → Email**, para pruebas rápidas puedes desactivar **Confirm email**.
 4. Copia URL y anon key a `.env.local` (ver `.env.example`).
 5. En Vercel → Project → Settings → Environment Variables, agrega las mismas:
@@ -48,7 +49,7 @@ Para que una persona se una a tu espacio familiar desde la app desplegada:
 - Login / registro (Supabase Auth cuando hay nube)
 - Espacio personal + familiar compartido (invitaciones por código)
 - Imagen y color de acento por espacio (para reconocer al cambiar)
-- Categorías, cuentas, movimientos, presupuestos, deudas y metas
+- Categorías, cuentas, movimientos, bolsillos, deudas y metas
 - Dashboard con gráficos
 - Temas + color de acento del perfil (fallback si el espacio no tiene color)
 - PWA instalable

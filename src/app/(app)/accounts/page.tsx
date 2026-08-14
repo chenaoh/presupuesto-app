@@ -6,6 +6,7 @@ import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
 import { PeriodPicker } from "@/components/PeriodPicker";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/constants";
+import { accountColor } from "@/lib/colors";
 import { formatDate, formatMoney } from "@/lib/format";
 import { filterTxs } from "@/lib/insights";
 import { usePeriod } from "@/lib/period";
@@ -47,6 +48,22 @@ export default function AccountsPage() {
   const currency = user?.currency ?? "COP";
   const accounts = workspaceAccounts();
   const hasInstitutions = institutions.length > 0;
+
+  const accountsByType = useMemo(() => {
+    const order = Object.keys(ACCOUNT_TYPE_LABELS) as AccountType[];
+    const groups: Array<{ type: AccountType; label: string; color: string; items: Account[] }> = [];
+    for (const type of order) {
+      const items = accounts.filter((a) => a.accountType === type);
+      if (items.length === 0) continue;
+      groups.push({
+        type,
+        label: ACCOUNT_TYPE_LABELS[type],
+        color: accountColor(type),
+        items,
+      });
+    }
+    return groups;
+  }, [accounts]);
 
   const historyTxs = useMemo(() => {
     if (!historyAccount) return [];
@@ -217,71 +234,105 @@ export default function AccountsPage() {
 
       {error && !formOpen && !instOpen && <p className="text-xs text-danger">{error}</p>}
 
-      <div className="card overflow-hidden">
+      <div className="space-y-3">
         {accounts.length === 0 ? (
-          <p className="muted p-3 text-sm">Sin cuentas.</p>
+          <div className="card">
+            <p className="muted p-3 text-sm">Sin cuentas.</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-border">
-            {accounts.map((account) => {
-              const institution = institutions.find((i) => i.id === account.institutionId);
-              return (
-                <li key={account.id} className="flex items-center gap-2 px-3 py-2">
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 text-left"
-                    onClick={() => setHistoryAccount(account)}
-                  >
-                    <p className="truncate text-sm font-medium">
-                      {itemLabel(account.workspaceId, account.name)}
-                    </p>
-                    <p className="muted truncate text-[11px]">
-                      {institution?.name} · {ACCOUNT_TYPE_LABELS[account.accountType]} · Ver flujo
-                    </p>
-                  </button>
-                  <p className="shrink-0 text-sm font-semibold tabular-nums">
-                    {formatMoney(accountBalance(account.id), currency)}
-                  </p>
-                  <button
-                    type="button"
-                    className="rounded-md border border-border p-1.5"
-                    onClick={() => setHistoryAccount(account)}
-                    aria-label="Historial"
-                    title="Historial del periodo"
-                  >
-                    <History size={13} />
-                  </button>
-                  {managing && (
-                    <div className="flex shrink-0 gap-1">
+          accountsByType.map((group) => (
+            <section key={group.type} className="card overflow-hidden">
+              <div
+                className="flex items-center gap-2 border-b border-border px-3 py-2"
+                style={{
+                  background: `color-mix(in oklab, ${group.color} 14%, var(--bg-elevated))`,
+                  boxShadow: `inset 3px 0 0 ${group.color}`,
+                }}
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ background: group.color }}
+                  aria-hidden
+                />
+                <h2 className="text-xs font-bold uppercase tracking-wide" style={{ color: group.color }}>
+                  {group.label}
+                </h2>
+                <span className="muted text-[11px]">
+                  {group.items.length} cuenta{group.items.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <ul className="divide-y divide-border">
+                {group.items.map((account) => {
+                  const institution = institutions.find((i) => i.id === account.institutionId);
+                  const color = accountColor(account.accountType);
+                  return (
+                    <li key={account.id} className="flex items-center gap-2 px-3 py-2">
+                      <span
+                        className="h-8 w-1.5 shrink-0 rounded-full"
+                        style={{ background: color }}
+                        aria-hidden
+                      />
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={() => setHistoryAccount(account)}
+                      >
+                        <p className="truncate text-sm font-medium">
+                          {itemLabel(account.workspaceId, account.name)}
+                        </p>
+                        <p className="muted truncate text-[11px]">
+                          {institution?.name} · Ver flujo
+                        </p>
+                      </button>
+                      <p
+                        className="shrink-0 text-sm font-semibold tabular-nums"
+                        style={{ color }}
+                      >
+                        {formatMoney(accountBalance(account.id), currency)}
+                      </p>
                       <button
                         type="button"
                         className="rounded-md border border-border p-1.5"
-                        onClick={() => startEdit(account)}
-                        aria-label="Editar"
+                        onClick={() => setHistoryAccount(account)}
+                        aria-label="Historial"
+                        title="Historial del periodo"
                       >
-                        <Pencil size={13} />
+                        <History size={13} />
                       </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-border p-1.5"
-                        onClick={() => archiveAccount(account.id)}
-                        aria-label="Archivar"
-                      >
-                        <Archive size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-red-300 bg-red-50 p-1.5 text-red-700"
-                        onClick={() => onDelete(account.id)}
-                        aria-label="Eliminar"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                      {managing && (
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            type="button"
+                            className="rounded-md border border-border p-1.5"
+                            onClick={() => startEdit(account)}
+                            aria-label="Editar"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border border-border p-1.5"
+                            onClick={() => archiveAccount(account.id)}
+                            aria-label="Archivar"
+                          >
+                            <Archive size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border border-red-300 bg-red-50 p-1.5 text-red-700"
+                            onClick={() => onDelete(account.id)}
+                            aria-label="Eliminar"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))
         )}
       </div>
 
@@ -315,17 +366,24 @@ export default function AccountsPage() {
           </div>
           <div>
             <label className="label">Tipo de cuenta</label>
-            <select
-              className="select"
-              value={accountType}
-              onChange={(e) => setAccountType(e.target.value as AccountType)}
-            >
-              {Object.entries(ACCOUNT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <span
+                className="h-8 w-2 shrink-0 rounded-full"
+                style={{ background: accountColor(accountType) }}
+                aria-hidden
+              />
+              <select
+                className="select flex-1"
+                value={accountType}
+                onChange={(e) => setAccountType(e.target.value as AccountType)}
+              >
+                {Object.entries(ACCOUNT_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="label">Saldo inicial</label>

@@ -36,6 +36,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Primero gestiona instituciones con el botón Instituciones.",
       "Luego crea una cuenta eligiendo institución, tipo y saldo inicial.",
+      "Las cuentas se agrupan por tipo y color (ahorros, corriente, efectivo…).",
       "Toca una cuenta o el ícono de historial para ver su flujo en el periodo.",
       "Activa Gestionar para editar, archivar o eliminar cuentas.",
     ],
@@ -47,7 +48,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Revisa el consejo destacado también en Inicio.",
       "Cambia el periodo para ver tips del mes actual, anterior o un rango.",
-      "Los consejos usan presupuestos, categorías y comparación con el periodo previo.",
+      "Los consejos usan bolsillos, categorías y comparación con el periodo previo.",
     ],
   },
   "/categories": {
@@ -60,12 +61,14 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     ],
   },
   "/budgets": {
-    title: "Presupuestos",
-    summary: "Define un tope mensual por categoría de gasto.",
+    title: "Bolsillos y presupuesto",
+    summary:
+      "Bolsillos por categoría en cada espacio. En espacios familiares también hay un Presupuesto del espacio aportado desde cuentas personales.",
     steps: [
-      "Elige una categoría y el límite del mes.",
-      "Compara lo presupuestado con lo gastado en movimientos.",
-      "Ajusta o elimina límites cuando cambien tus prioridades.",
+      "Los bolsillos y deudas/ahorros son independientes por espacio.",
+      "En un espacio familiar define el Presupuesto del mes y aporta desde tu cuenta personal.",
+      "Desde tu perfil personal puedes elegir categorías de espacios asociados al registrar movimientos.",
+      "Desde un espacio familiar no se usan categorías de otros perfiles.",
     ],
   },
   "/debts": {

@@ -14,7 +14,8 @@ export default function SavingsPage() {
     user,
     workspace,
     workspaceGoals,
-    allAccounts,
+    fundingAccounts,
+    workspaceAccounts,
     addSavingsGoal,
     updateSavingsGoal,
     deleteSavingsGoal,
@@ -36,7 +37,12 @@ export default function SavingsPage() {
   const [mode, setMode] = useState<"savings_contribution" | "savings_withdrawal">("savings_contribution");
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
-  const accounts = allAccounts();
+  const accounts = (() => {
+    const map = new Map(
+      [...fundingAccounts(), ...workspaceAccounts()].map((a) => [a.id, a]),
+    );
+    return [...map.values()];
+  })();
   const goals = workspaceGoals();
   const { guard, dialog } = useRequireAccounts(
     "Para aportar o retirar de una meta primero debes crear al menos una cuenta.",

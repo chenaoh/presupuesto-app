@@ -1,35 +1,70 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
-import { currentPeriod, formatMoney, monthLabel } from "@/lib/format";
+import { accountColor } from "@/lib/colors";
+import { currentPeriod, formatMoney, monthLabel, todayIso } from "@/lib/format";
 import { useApp } from "@/lib/store";
 
 export default function BudgetsPage() {
   const {
     user,
+    workspace,
     data,
-    allCategories,
+    workspaceCategories,
+    workspaceBudgets,
     spentInCategory,
     upsertBudget,
     deleteBudget,
+    upsertWorkspaceBudget,
+    deleteWorkspaceBudget,
+    workspaceBudgetFunded,
+    workspaceBudgetSpent,
+    fundingAccounts,
+    addTransaction,
+    accountBalance,
     itemLabel,
-    myWorkspaces,
   } = useApp();
   const { year, month } = currentPeriod();
   const [categoryId, setCategoryId] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [spaceLimit, setSpaceLimit] = useState("");
+  const [spaceFormOpen, setSpaceFormOpen] = useState(false);
+  const [contribOpen, setContribOpen] = useState(false);
+  const [contribAmount, setContribAmount] = useState("");
+  const [contribAccountId, setContribAccountId] = useState("");
+  const [contribNote, setContribNote] = useState("");
+  const [contribError, setContribError] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
   const currency = user?.currency ?? "COP";
-  const categories = allCategories("expense");
-  const workspaceIds = new Set(myWorkspaces.map((w) => w.id));
-  const budgets = data.budgets.filter(
-    (b) => workspaceIds.has(b.workspaceId) && b.periodYear === year && b.periodMonth === month,
+  const isShared = workspace?.type === "shared";
+  const categories = workspaceCategories("expense");
+  const budgets = workspaceBudgets(year, month);
+  const personalAccounts = fundingAccounts();
+
+  const spaceBudget = useMemo(
+    () =>
+      (data.workspaceBudgets ?? []).find(
+        (b) =>
+          b.workspaceId === workspace?.id &&
+          b.periodYear === year &&
+          b.periodMonth === month,
+      ),
+    [data.workspaceBudgets, workspace?.id, year, month],
   );
+
+  const funded = workspaceBudgetFunded(workspace?.id, year, month);
+  const spaceSpent = workspaceBudgetSpent(workspace?.id, year, month);
+  const spaceLimitAmt = spaceBudget?.limitAmount ?? 0;
+  const spacePct = spaceLimitAmt
+    ? Math.min(100, Math.round((spaceSpent / spaceLimitAmt) * 100))
+    : 0;
 
   const totalLimit = budgets.reduce((s, b) => s + b.limitAmount, 0);
   const totalSpent = budgets.reduce(
@@ -61,12 +96,48 @@ export default function BudgetsPage() {
     setFormOpen(true);
   }
 
+  function onSaveSpaceBudget(e: FormEvent) {
+    e.preventDefault();
+    const err = upsertWorkspaceBudget(Number(spaceLimit), year, month);
+    if (err) {
+      setContribError(err);
+      return;
+    }
+    setSpaceFormOpen(false);
+    setContribError(null);
+  }
+
+  function onContribute(e: FormEvent) {
+    e.preventDefault();
+    if (!workspace) return;
+    const err = addTransaction({
+      type: "space_contribution",
+      amount: Number(contribAmount),
+      date: todayIso(),
+      note: contribNote || `Aporte a ${workspace.name}`,
+      accountId: contribAccountId || undefined,
+      targetWorkspaceId: workspace.id,
+    });
+    if (err) {
+      setContribError(err);
+      return;
+    }
+    setContribOpen(false);
+    setContribAmount("");
+    setContribNote("");
+    setContribError(null);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Presupuestos</h1>
-          <p className="muted mt-0.5 text-sm capitalize">{monthLabel(year, month)}</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            {isShared ? "Presupuesto y bolsillos" : "Bolsillos"}
+          </h1>
+          <p className="muted mt-0.5 text-sm capitalize">
+            {workspace?.name ?? "—"} · {monthLabel(year, month)}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <ManageToggle active={managing} onChange={setManaging} />
@@ -80,14 +151,84 @@ export default function BudgetsPage() {
               setFormOpen(true);
             }}
           >
-            +
+            + Bolsillo
           </button>
         </div>
       </div>
 
+      {isShared && (
+        <section className="card space-y-3 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="muted text-xs font-semibold uppercase tracking-wide">
+                Presupuesto del espacio
+              </p>
+              <p className="mt-1 text-2xl font-bold tabular-nums">
+                {formatMoney(spaceSpent, currency)}
+                <span className="muted text-base font-semibold">
+                  {" "}
+                  / {formatMoney(spaceLimitAmt || 0, currency)}
+                </span>
+              </p>
+              <p className="muted mt-1 text-xs">
+                Aportado por miembros: {formatMoney(funded, currency)}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                className="btn btn-ghost text-xs"
+                onClick={() => {
+                  setSpaceLimit(spaceBudget ? String(spaceBudget.limitAmount) : "");
+                  setSpaceFormOpen(true);
+                }}
+              >
+                {spaceBudget ? "Editar tope" : "Definir tope"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary text-xs"
+                onClick={() => {
+                  setContribError(null);
+                  setContribAccountId(personalAccounts[0]?.id ?? "");
+                  setContribOpen(true);
+                }}
+              >
+                Aportar
+              </button>
+            </div>
+          </div>
+          <div className="progress h-3">
+            <span
+              style={{
+                width: `${spacePct}%`,
+                background:
+                  spacePct >= 100
+                    ? "var(--danger)"
+                    : spacePct >= 80
+                      ? "var(--warning)"
+                      : "var(--accent)",
+              }}
+            />
+          </div>
+          <p className="muted text-[11px]">
+            El aporte sale de tu cuenta personal y alimenta el presupuesto de {workspace?.name}.
+          </p>
+          {managing && spaceBudget && (
+            <button
+              type="button"
+              className="btn btn-ghost text-xs text-danger"
+              onClick={() => deleteWorkspaceBudget(spaceBudget.id)}
+            >
+              Quitar tope del mes
+            </button>
+          )}
+        </section>
+      )}
+
       <section className="card p-4 sm:p-5">
         <p className="muted text-xs font-semibold uppercase tracking-wide">
-          Gasto total mensual
+          Bolsillos · gasto del mes
         </p>
         <p className="mt-1 text-2xl font-bold tabular-nums">
           {formatMoney(totalSpent, currency)}
@@ -120,17 +261,15 @@ export default function BudgetsPage() {
       </section>
 
       <div>
-        <h2 className="mb-2 px-0.5 text-base font-bold">Desglose por categoría</h2>
+        <h2 className="mb-2 px-0.5 text-base font-bold">Bolsillos por categoría</h2>
         {budgets.length === 0 ? (
           <div className="card p-4">
-            <p className="muted text-sm">Sin presupuestos este mes.</p>
+            <p className="muted text-sm">Sin bolsillos este mes en este espacio.</p>
           </div>
         ) : (
           <ul className="space-y-2">
             {budgets.map((b) => {
-              const cat =
-                categories.find((c) => c.id === b.categoryId) ??
-                data.categories.find((c) => c.id === b.categoryId);
+              const cat = categories.find((c) => c.id === b.categoryId);
               const spent = spentInCategory(b.categoryId, year, month);
               const pct = Math.min(100, Math.round((spent / b.limitAmount) * 100));
               const over = spent >= b.limitAmount;
@@ -139,12 +278,7 @@ export default function BudgetsPage() {
               return (
                 <li key={b.id} className="card p-3.5">
                   <div className="flex items-center gap-3">
-                    <span
-                      className="grid h-10 w-10 place-items-center rounded-full text-sm font-bold text-white"
-                      style={{ background: cat?.color || "var(--accent)" }}
-                    >
-                      {(cat?.name || "?").slice(0, 1).toUpperCase()}
-                    </span>
+                    <CategoryIcon icon={cat?.icon} color={cat?.color} size={18} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="truncate text-sm font-semibold">
@@ -209,24 +343,22 @@ export default function BudgetsPage() {
         )}
       </div>
 
-      <Modal open={formOpen} onClose={closeForm} title={editingId ? "Editar presupuesto" : "Nuevo presupuesto"}>
+      <Modal open={formOpen} onClose={closeForm} title={editingId ? "Editar bolsillo" : "Nuevo bolsillo"}>
         <form onSubmit={onSubmit} className="grid gap-2">
           <div>
-            <label className="label">Categoría</label>
-            <select
-              className="select"
+            <ColorCombo
+              label="Categoría"
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              onChange={setCategoryId}
               required
-              disabled={!!editingId}
-            >
-              <option value="">Selecciona la categoría de gasto</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {itemLabel(c.workspaceId, c.name)}
-                </option>
-              ))}
-            </select>
+              placeholder="Selecciona la categoría de gasto"
+              options={categories.map((c) => ({
+                value: c.id,
+                label: c.name,
+                color: c.color,
+                icon: c.icon,
+              }))}
+            />
           </div>
           <div>
             <label className="label">Límite mensual</label>
@@ -241,6 +373,76 @@ export default function BudgetsPage() {
             />
           </div>
           <button className="btn btn-primary w-full">{editingId ? "Actualizar" : "Guardar"}</button>
+        </form>
+      </Modal>
+
+      <Modal
+        open={spaceFormOpen}
+        onClose={() => setSpaceFormOpen(false)}
+        title="Presupuesto del espacio"
+      >
+        <form onSubmit={onSaveSpaceBudget} className="space-y-2">
+          <p className="muted text-xs">
+            Define el tope mensual del espacio. Cada miembro aporta desde su cuenta personal.
+          </p>
+          <div>
+            <label className="label">Tope del mes</label>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              value={spaceLimit}
+              onChange={(e) => setSpaceLimit(e.target.value)}
+              placeholder="Ej: 2000000"
+              required
+            />
+          </div>
+          {contribError && <p className="text-xs text-danger">{contribError}</p>}
+          <button className="btn btn-primary w-full">Guardar presupuesto</button>
+        </form>
+      </Modal>
+
+      <Modal open={contribOpen} onClose={() => setContribOpen(false)} title="Aportar al espacio">
+        <form onSubmit={onContribute} className="space-y-2">
+          <p className="muted text-xs">
+            Sale de tu espacio personal y se registra como aporte al presupuesto de{" "}
+            {workspace?.name}.
+          </p>
+          <ColorCombo
+            label="Cuenta personal"
+            value={contribAccountId}
+            onChange={setContribAccountId}
+            required
+            placeholder="Elige tu cuenta"
+            options={personalAccounts.map((a) => ({
+              value: a.id,
+              label: `${a.name} · ${formatMoney(accountBalance(a.id), currency)}`,
+              color: accountColor(a.accountType),
+            }))}
+          />
+          <div>
+            <label className="label">Monto</label>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              value={contribAmount}
+              onChange={(e) => setContribAmount(e.target.value)}
+              placeholder="Ej: 300000"
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Nota</label>
+            <input
+              className="input"
+              value={contribNote}
+              onChange={(e) => setContribNote(e.target.value)}
+              placeholder="Opcional"
+            />
+          </div>
+          {contribError && <p className="text-xs text-danger">{contribError}</p>}
+          <button className="btn btn-primary w-full">Registrar aporte</button>
         </form>
       </Modal>
     </div>

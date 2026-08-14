@@ -126,7 +126,7 @@ export function buildTips(input: Input): Tip[] {
       tips.push({
         id: `budget-near-${b.id}`,
         title: `Cerca del límite: ${cat?.name ?? "categoría"}`,
-        body: `Llevas el ${pct}% del presupuesto de ${cat?.name ?? "la categoría"}${scope}. Te quedan ${formatMoney(b.limitAmount - spent, currency)}.`,
+        body: `Llevas el ${pct}% del bolsillo de ${cat?.name ?? "la categoría"}${scope}. Te quedan ${formatMoney(b.limitAmount - spent, currency)}.`,
         tone: "warning",
         priority: 70,
       });

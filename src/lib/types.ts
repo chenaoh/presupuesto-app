@@ -16,7 +16,8 @@ export type TransactionType =
   | "transfer"
   | "debt_payment"
   | "savings_contribution"
-  | "savings_withdrawal";
+  | "savings_withdrawal"
+  | "space_contribution";
 
 export type PaymentMethod =
   | "efectivo"
@@ -108,6 +109,15 @@ export interface Budget {
   limitAmount: number;
 }
 
+/** Tope mensual del espacio completo (Presupuesto), distinto de bolsillos por categoría. */
+export interface WorkspaceBudget {
+  id: string;
+  workspaceId: string;
+  periodYear: number;
+  periodMonth: number;
+  limitAmount: number;
+}
+
 export interface Debt {
   id: string;
   workspaceId: string;
@@ -160,6 +170,7 @@ export interface AppData {
   accounts: Account[];
   categories: Category[];
   budgets: Budget[];
+  workspaceBudgets: WorkspaceBudget[];
   debts: Debt[];
   savingsGoals: SavingsGoal[];
   transactions: Transaction[];
@@ -176,6 +187,7 @@ export const EMPTY_DATA: AppData = {
   accounts: [],
   categories: [],
   budgets: [],
+  workspaceBudgets: [],
   debts: [],
   savingsGoals: [],
   transactions: [],

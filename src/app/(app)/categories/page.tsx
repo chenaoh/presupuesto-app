@@ -2,8 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { CATEGORY_ICON_NAMES } from "@/lib/categoryIcons";
 import { useApp } from "@/lib/store";
 import type { Category, CategoryKind } from "@/lib/types";
 
@@ -19,6 +21,7 @@ export default function CategoriesPage() {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<CategoryKind>("expense");
   const [color, setColor] = useState("#0F766E");
+  const [icon, setIcon] = useState("Tag");
   const [editing, setEditing] = useState<Category | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -32,19 +35,20 @@ export default function CategoriesPage() {
     setEditing(null);
     setName("");
     setColor("#0F766E");
+    setIcon("Tag");
     setError(null);
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (editing) {
-      const err = updateCategory(editing.id, { name, kind, color });
+      const err = updateCategory(editing.id, { name, kind, color, icon });
       if (err) {
         setError(err);
         return;
       }
     } else {
-      const err = addCategory(name, kind, color);
+      const err = addCategory(name, kind, color, icon);
       if (err) {
         setError(err);
         return;
@@ -58,6 +62,7 @@ export default function CategoriesPage() {
     setName(c.name);
     setKind(c.kind);
     setColor(c.color);
+    setIcon(c.icon || "Tag");
     setManaging(true);
     setFormOpen(true);
   }
@@ -84,6 +89,7 @@ export default function CategoriesPage() {
         onClick={() => {
           setEditing(null);
           setName("");
+          setIcon("Tag");
           setFormOpen(true);
         }}
       >
@@ -130,6 +136,25 @@ export default function CategoriesPage() {
             <label className="label">Color</label>
             <input className="input h-[42px]" type="color" value={color} onChange={(e) => setColor(e.target.value)} />
           </div>
+          <div className="sm:col-span-2">
+            <label className="label">Icono</label>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {CATEGORY_ICON_NAMES.map((nameIcon) => (
+                <button
+                  key={nameIcon}
+                  type="button"
+                  className={`rounded-xl border p-1 ${
+                    icon === nameIcon ? "border-accent" : "border-border"
+                  }`}
+                  onClick={() => setIcon(nameIcon)}
+                  aria-label={nameIcon}
+                  title={nameIcon}
+                >
+                  <CategoryIcon icon={nameIcon} color={color} size={16} />
+                </button>
+              ))}
+            </div>
+          </div>
           {error && <p className="text-xs text-danger sm:col-span-2">{error}</p>}
           <button className="btn btn-primary w-full sm:col-span-2">{editing ? "Guardar" : "Crear"}</button>
         </form>
@@ -164,7 +189,7 @@ function CategoryTable({
         <ul className="divide-y divide-border">
           {items.map((c) => (
             <li key={c.id} className="flex items-center gap-2 px-3 py-2">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+              <CategoryIcon icon={c.icon} color={c.color} size={16} />
               <span className="min-w-0 flex-1 truncate text-sm">
                 {itemLabel(c.workspaceId, c.name)}
                 {c.isSystem ? <span className="muted ml-1 text-[10px]">base</span> : null}

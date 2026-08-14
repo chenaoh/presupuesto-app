@@ -14,7 +14,8 @@ export default function DebtsPage() {
     user,
     workspace,
     workspaceDebts,
-    allAccounts,
+    fundingAccounts,
+    workspaceAccounts,
     addDebt,
     updateDebt,
     deleteDebt,
@@ -34,7 +35,12 @@ export default function DebtsPage() {
   const [payAccountId, setPayAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
-  const accounts = allAccounts();
+  const accounts = (() => {
+    const map = new Map(
+      [...fundingAccounts(), ...workspaceAccounts()].map((a) => [a.id, a]),
+    );
+    return [...map.values()];
+  })();
   const debts = workspaceDebts();
   const { guard, dialog } = useRequireAccounts(
     "Para registrar un pago de deuda primero debes crear al menos una cuenta.",

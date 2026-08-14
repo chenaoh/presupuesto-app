@@ -29,7 +29,7 @@ const links = [
   { href: "/transactions", label: "Movimientos", icon: ArrowLeftRight },
   { href: "/accounts", label: "Cuentas", icon: Wallet },
   { href: "/categories", label: "Categorías", icon: Tags },
-  { href: "/budgets", label: "Presupuestos", icon: PiggyBank },
+  { href: "/budgets", label: "Bolsillos", icon: PiggyBank },
   { href: "/debts", label: "Deudas", icon: Landmark },
   { href: "/savings", label: "Ahorros", icon: Target },
   { href: "/consejos", label: "Consejos", icon: Lightbulb },
@@ -40,7 +40,7 @@ const links = [
 const mobilePrimary = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/transactions", label: "Movim.", icon: ArrowLeftRight },
-  { href: "/budgets", label: "Presup.", icon: PiggyBank },
+  { href: "/budgets", label: "Bolsillos", icon: PiggyBank },
 ];
 
 const mobilePrimaryHrefs = new Set(mobilePrimary.map((t) => t.href));

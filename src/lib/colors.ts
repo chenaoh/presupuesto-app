@@ -22,4 +22,5 @@ export const TYPE_COLORS: Record<string, string> = {
   debt_payment: "#868E96",
   savings_contribution: "#0D9488",
   savings_withdrawal: "#B45309",
+  space_contribution: "#7C3AED",
 };

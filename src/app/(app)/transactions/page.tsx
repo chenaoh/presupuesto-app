@@ -23,12 +23,14 @@ const TYPES: Array<{ value: TransactionType; label: string }> = [
   { value: "debt_payment", label: "Pago deuda" },
   { value: "savings_contribution", label: "Aporte" },
   { value: "savings_withdrawal", label: "Retiro" },
+  { value: "space_contribution", label: "Aporte espacio" },
 ];
 
 export default function TransactionsPage() {
   const {
     user,
     workspace,
+    myWorkspaces,
     data,
     addTransaction,
     updateTransaction,
@@ -36,7 +38,9 @@ export default function TransactionsPage() {
     repeatTransaction,
     workspaceTransactions,
     workspaceCategories,
+    categoriesFor,
     allAccounts,
+    fundingAccounts,
     workspaceDebts,
     workspaceGoals,
     itemLabel,
@@ -60,6 +64,7 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<"all" | "recurring" | TransactionType>("all");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterAccountId, setFilterAccountId] = useState("");
+  const [categorySpaceId, setCategorySpaceId] = useState("");
   const [repeatId, setRepeatId] = useState<string | null>(null);
   const [repeatDate, setRepeatDate] = useState(todayIso());
   const [repeatAmount, setRepeatAmount] = useState("");
@@ -78,21 +83,45 @@ export default function TransactionsPage() {
     setFilterAccountId("");
     setFilter("all");
     setDetailTx(null);
+    setCategorySpaceId(workspace?.id ?? "");
   }, [workspace?.id]);
 
-  const categories = useMemo(() => {
-    if (type === "income") return workspaceCategories("income");
-    if (type === "expense") return workspaceCategories("expense");
-    return [];
-  }, [type, workspaceCategories]);
+  const categorySpaces = useMemo(() => {
+    if (!workspace) return [];
+    if (workspace.type === "personal") {
+      return myWorkspaces;
+    }
+    return [workspace];
+  }, [myWorkspaces, workspace]);
 
-  const accounts = allAccounts();
+  const categories = useMemo(() => {
+    if (type !== "income" && type !== "expense") return [];
+    const spaceId =
+      workspace?.type === "personal"
+        ? categorySpaceId || workspace.id
+        : workspace?.id;
+    if (!spaceId) return [];
+    return categoriesFor(spaceId, type);
+  }, [type, workspace, categorySpaceId, categoriesFor]);
+
+  const accounts = useMemo(() => {
+    if (type === "space_contribution") return fundingAccounts();
+    if (workspace?.type === "shared") {
+      const personal = fundingAccounts();
+      const own = allAccounts().filter((a) => a.workspaceId === workspace.id);
+      const map = new Map([...personal, ...own].map((a) => [a.id, a]));
+      return [...map.values()];
+    }
+    return allAccounts();
+  }, [type, workspace, fundingAccounts, allAccounts]);
   const debts = workspaceDebts();
   const goals = workspaceGoals();
-  const filterCategories = useMemo(
-    () => workspaceCategories(),
-    [workspaceCategories],
-  );
+  const filterCategories = useMemo(() => {
+    if (workspace?.type === "personal") {
+      return myWorkspaces.flatMap((w) => categoriesFor(w.id));
+    }
+    return workspaceCategories();
+  }, [workspace, myWorkspaces, categoriesFor, workspaceCategories]);
   const txs = filterTxs(workspaceTransactions(), range).filter((t) => {
     if (filterCategoryId && t.categoryId !== filterCategoryId) return false;
     if (
@@ -170,11 +199,13 @@ export default function TransactionsPage() {
     const goal = goals.find((g) => g.id === savingsGoalId);
     const account = accounts.find((a) => a.id === accountId);
     const targetWorkspaceId =
-      category?.workspaceId ||
-      debt?.workspaceId ||
-      goal?.workspaceId ||
-      workspace?.id ||
-      account?.workspaceId;
+      type === "space_contribution"
+        ? workspace?.id
+        : category?.workspaceId ||
+          debt?.workspaceId ||
+          goal?.workspaceId ||
+          workspace?.id ||
+          account?.workspaceId;
 
     const payload = {
       type,
@@ -405,6 +436,7 @@ export default function TransactionsPage() {
           value: c.id,
           label: itemLabel(c.workspaceId, c.name),
           color: c.color,
+          icon: c.icon,
         }))}
       />
 
@@ -581,13 +613,21 @@ export default function TransactionsPage() {
               value={type}
               disabled={!!editingId}
               onChange={(e) => {
-                setType(e.target.value as TransactionType);
+                const next = e.target.value as TransactionType;
+                setType(next);
                 setCategoryId("");
                 setDebtId("");
                 setSavingsGoalId("");
+                if (next === "space_contribution" && workspace?.type === "shared") {
+                  // ok
+                } else if (next === "space_contribution") {
+                  // only useful in shared; still allow if they switch
+                }
               }}
             >
-              {TYPES.map((t) => (
+              {TYPES.filter((t) =>
+                t.value === "space_contribution" ? workspace?.type === "shared" : true,
+              ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -621,20 +661,53 @@ export default function TransactionsPage() {
           </div>
 
           {(type === "income" || type === "expense") && (
-            <div className="sm:col-span-2">
-              <ColorCombo
-                label="Categoría"
-                value={categoryId}
-                onChange={setCategoryId}
-                required
-                placeholder="Selecciona la categoría"
-                options={categories.map((c) => ({
-                  value: c.id,
-                  label: itemLabel(c.workspaceId, c.name),
-                  color: c.color,
-                }))}
-              />
-            </div>
+            <>
+              {workspace?.type === "personal" && categorySpaces.length > 1 && (
+                <div className="sm:col-span-2">
+                  <label className="label">Espacio de la categoría</label>
+                  <select
+                    className="select"
+                    value={categorySpaceId || workspace.id}
+                    onChange={(e) => {
+                      setCategorySpaceId(e.target.value);
+                      setCategoryId("");
+                    }}
+                  >
+                    {categorySpaces.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.type === "personal" ? `${w.name} (Personal)` : `${w.name} (Familiar)`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="muted mt-1 text-[11px]">
+                    Desde tu perfil personal puedes registrar gastos/ingresos en categorías de tus
+                    espacios familiares.
+                  </p>
+                </div>
+              )}
+              <div className="sm:col-span-2">
+                <ColorCombo
+                  label="Categoría"
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  required
+                  placeholder="Selecciona la categoría"
+                  options={categories.map((c) => ({
+                    value: c.id,
+                    label: itemLabel(c.workspaceId, c.name),
+                    color: c.color,
+                    icon: c.icon,
+                  }))}
+                />
+              </div>
+            </>
+          )}
+
+          {type === "space_contribution" && (
+            <p className="muted text-xs sm:col-span-2">
+              Aporte al presupuesto del espacio activo. Debe salir de una cuenta de tu perfil
+              personal.
+            </p>
           )}
 
           {type !== "transfer" && (

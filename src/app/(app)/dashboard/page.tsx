@@ -208,7 +208,7 @@ export default function DashboardPage() {
       {budgets.length > 0 && (
         <section className="card p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold">Presupuestos</h2>
+            <h2 className="text-lg font-bold">Bolsillos</h2>
             <Link href="/budgets" className="text-xs font-bold uppercase tracking-wide text-accent">
               Ver
             </Link>

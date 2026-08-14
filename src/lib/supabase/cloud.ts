@@ -11,6 +11,7 @@ import type {
   ThemeMode,
   Transaction,
   Workspace,
+  WorkspaceBudget,
   WorkspaceInvite,
   WorkspaceMember,
 } from "../types";
@@ -180,6 +181,22 @@ function mapBudget(row: {
     id: row.id,
     workspaceId: row.workspace_id,
     categoryId: row.category_id,
+    periodYear: row.period_year,
+    periodMonth: row.period_month,
+    limitAmount: Number(row.limit_amount),
+  };
+}
+
+function mapWorkspaceBudget(row: {
+  id: string;
+  workspace_id: string;
+  period_year: number;
+  period_month: number;
+  limit_amount: number | string;
+}): WorkspaceBudget {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
     periodYear: row.period_year,
     periodMonth: row.period_month,
     limitAmount: Number(row.limit_amount),
@@ -371,6 +388,7 @@ export async function loadCloudData(userId: string, email: string): Promise<AppD
     accountsRes,
     categoriesRes,
     budgetsRes,
+    workspaceBudgetsRes,
     debtsRes,
     goalsRes,
     txRes,
@@ -383,10 +401,17 @@ export async function loadCloudData(userId: string, email: string): Promise<AppD
     sb.from("accounts").select("*").in("workspace_id", workspaceIds),
     sb.from("categories").select("*").in("workspace_id", workspaceIds),
     sb.from("budgets").select("*").in("workspace_id", workspaceIds),
+    sb.from("workspace_budgets").select("*").in("workspace_id", workspaceIds),
     sb.from("debts").select("*").in("workspace_id", workspaceIds),
     sb.from("savings_goals").select("*").in("workspace_id", workspaceIds),
     sb.from("transactions").select("*").in("workspace_id", workspaceIds),
   ]);
+
+  // Si aún no corrieron la migración 006, no tumbar toda la carga.
+  const softErrors = [workspaceBudgetsRes].filter((r) => r.error);
+  for (const r of softErrors) {
+    console.warn("[supabase]", r.error?.message);
+  }
 
   const firstError = [
     profilesRes,
@@ -441,6 +466,9 @@ export async function loadCloudData(userId: string, email: string): Promise<AppD
     accounts: (accountsRes.data ?? []).map(mapAccount),
     categories: (categoriesRes.data ?? []).map(mapCategory),
     budgets: (budgetsRes.data ?? []).map(mapBudget),
+    workspaceBudgets: (workspaceBudgetsRes.error ? [] : workspaceBudgetsRes.data ?? []).map(
+      mapWorkspaceBudget,
+    ),
     debts: (debtsRes.data ?? []).map(mapDebt),
     savingsGoals: (goalsRes.data ?? []).map(mapGoal),
     transactions: (txRes.data ?? []).map(mapTx),

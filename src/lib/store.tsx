@@ -43,6 +43,7 @@ import type {
   Transaction,
   TransactionType,
   Workspace,
+  WorkspaceBudget,
 } from "./types";
 import { EMPTY_DATA } from "./types";
 
@@ -88,10 +89,10 @@ type AppContextValue = {
   createSharedWorkspace: (name: string) => Promise<string | null>;
   createInvite: () => Promise<string | null>;
   acceptInvite: (code: string) => Promise<string | null>;
-  addCategory: (name: string, kind: CategoryKind, color?: string) => string | null;
+  addCategory: (name: string, kind: CategoryKind, color?: string, icon?: string) => string | null;
   updateCategory: (
     id: string,
-    patch: Partial<Pick<Category, "name" | "kind" | "color">>,
+    patch: Partial<Pick<Category, "name" | "kind" | "color" | "icon">>,
   ) => string | null;
   archiveCategory: (id: string) => void;
   deleteCategory: (id: string) => string | null;
@@ -121,6 +122,12 @@ type AppContextValue = {
   setTransactionRecurring: (id: string, recurring: boolean) => void;
   upsertBudget: (categoryId: string, limitAmount: number, year?: number, month?: number) => void;
   deleteBudget: (id: string) => void;
+  upsertWorkspaceBudget: (limitAmount: number, year?: number, month?: number) => string | null;
+  deleteWorkspaceBudget: (id: string) => void;
+  /** Aportado al presupuesto del espacio en el periodo (space_contribution). */
+  workspaceBudgetFunded: (workspaceId?: string, year?: number, month?: number) => number;
+  /** Gastado en el espacio en el periodo (gastos del espacio). */
+  workspaceBudgetSpent: (workspaceId?: string, year?: number, month?: number) => number;
   addDebt: (input: { name: string; principal: number; dueDate?: string; accountId?: string }) => string | null;
   updateDebt: (
     id: string,
@@ -549,11 +556,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const addCategory = useCallback(
-    (name: string, kind: CategoryKind, color = "#64748B") => {
+    (name: string, kind: CategoryKind, color = "#64748B", icon = "Tag") => {
       if (!workspace) return "Selecciona un espacio.";
       const trimmed = name.trim();
       if (!trimmed) return "Escribe un nombre.";
       const id = makeId("cat");
+      const iconName = icon.trim() || "Tag";
       persist((prev) => ({
         ...prev,
         categories: [
@@ -564,7 +572,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             name: trimmed,
             kind,
             isSystem: false,
-            icon: "Tag",
+            icon: iconName,
             color,
             isArchived: false,
           },
@@ -577,7 +585,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           name: trimmed,
           kind,
           is_system: false,
-          icon: "Tag",
+          icon: iconName,
           color,
           is_archived: false,
         }),
@@ -603,7 +611,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateCategory = useCallback(
-    (id: string, patch: Partial<Pick<Category, "name" | "kind" | "color">>) => {
+    (id: string, patch: Partial<Pick<Category, "name" | "kind" | "color" | "icon">>) => {
       const cat = data.categories.find((c) => c.id === id);
       if (!cat) return "Categoría no encontrada.";
       const name = patch.name?.trim();
@@ -616,6 +624,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 ...c,
                 ...patch,
                 name: name ?? c.name,
+                icon: patch.icon !== undefined ? patch.icon.trim() || "Tag" : c.icon,
               }
             : c,
         ),
@@ -627,6 +636,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...(name !== undefined ? { name } : {}),
             ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
             ...(patch.color !== undefined ? { color: patch.color } : {}),
+            ...(patch.icon !== undefined ? { icon: patch.icon.trim() || "Tag" } : {}),
           })
           .eq("id", id),
       );
@@ -997,6 +1007,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ) {
         return "Selecciona la meta y la cuenta.";
       }
+      if (input.type === "space_contribution") {
+        if (!input.accountId) return "Selecciona tu cuenta personal para el aporte.";
+        const targetWs = data.workspaces.find((w) => w.id === targetId);
+        if (!targetWs || targetWs.type !== "shared") {
+          return "El aporte solo aplica a un espacio familiar.";
+        }
+        const acc = data.accounts.find((a) => a.id === input.accountId);
+        if (!personal || !acc || acc.workspaceId !== personal.id) {
+          return "El aporte debe salir de una cuenta de tu espacio personal.";
+        }
+      }
 
       if (input.categoryId) {
         const cat = data.categories.find((c) => c.id === input.categoryId);
@@ -1083,7 +1104,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       return null;
     },
-    [data.accounts, data.categories, data.debts, data.members, data.savingsGoals, myWorkspaces, persist, user, workspace?.id],
+    [data.accounts, data.categories, data.debts, data.members, data.savingsGoals, data.workspaces, myWorkspaces, persist, user, workspace?.id],
   );
 
   const updateTransaction = useCallback(
@@ -1291,9 +1312,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const cat = data.categories.find((c) => c.id === categoryId);
       const wsId = cat?.workspaceId ?? workspace?.id;
       if (!wsId) return;
+      if (cat && workspace && cat.workspaceId !== workspace.id) return;
       const period = currentPeriod();
       const y = year ?? period.year;
       const m = month ?? period.month;
+      const amount = Math.round(limitAmount);
+      let budgetId = "";
       persist((prev) => {
         const existing = prev.budgets.find(
           (b) =>
@@ -1303,30 +1327,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
             b.periodMonth === m,
         );
         if (existing) {
+          budgetId = existing.id;
           return {
             ...prev,
             budgets: prev.budgets.map((b) =>
-              b.id === existing.id ? { ...b, limitAmount } : b,
+              b.id === existing.id ? { ...b, limitAmount: amount } : b,
             ),
           };
         }
+        budgetId = uid("bud");
         return {
           ...prev,
           budgets: [
             ...prev.budgets,
             {
-              id: uid("bud"),
+              id: budgetId,
               workspaceId: wsId,
               categoryId,
               periodYear: y,
               periodMonth: m,
-              limitAmount,
+              limitAmount: amount,
             },
           ],
         };
       });
+      cloudWrite(() => {
+        const sb = createClient()!;
+        if (!budgetId) return Promise.resolve({ error: null });
+        return sb.from("budgets").upsert({
+          id: budgetId,
+          workspace_id: wsId,
+          category_id: categoryId,
+          period_year: y,
+          period_month: m,
+          limit_amount: amount,
+        });
+      });
     },
-    [data.categories, persist, workspace?.id],
+    [data.categories, persist, workspace],
   );
 
   const deleteBudget = useCallback(
@@ -1335,8 +1373,113 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...prev,
         budgets: prev.budgets.filter((b) => b.id !== id),
       }));
+      cloudWrite(() => createClient()!.from("budgets").delete().eq("id", id));
     },
     [persist],
+  );
+
+  const upsertWorkspaceBudget = useCallback(
+    (limitAmount: number, year?: number, month?: number) => {
+      if (!workspace) return "Selecciona un espacio.";
+      if (workspace.type !== "shared") {
+        return "El presupuesto de espacio solo aplica a espacios familiares.";
+      }
+      if (!limitAmount || limitAmount < 0) return "Monto inválido.";
+      const period = currentPeriod();
+      const y = year ?? period.year;
+      const m = month ?? period.month;
+      const amount = Math.round(limitAmount);
+      let budgetId = "";
+      persist((prev) => {
+        const list = prev.workspaceBudgets ?? [];
+        const existing = list.find(
+          (b) => b.workspaceId === workspace.id && b.periodYear === y && b.periodMonth === m,
+        );
+        if (existing) {
+          budgetId = existing.id;
+          return {
+            ...prev,
+            workspaceBudgets: list.map((b) =>
+              b.id === existing.id ? { ...b, limitAmount: amount } : b,
+            ),
+          };
+        }
+        budgetId = makeId("wbud");
+        return {
+          ...prev,
+          workspaceBudgets: [
+            ...list,
+            {
+              id: budgetId,
+              workspaceId: workspace.id,
+              periodYear: y,
+              periodMonth: m,
+              limitAmount: amount,
+            } satisfies WorkspaceBudget,
+          ],
+        };
+      });
+      cloudWrite(() =>
+        createClient()!.from("workspace_budgets").upsert({
+          id: budgetId,
+          workspace_id: workspace.id,
+          period_year: y,
+          period_month: m,
+          limit_amount: amount,
+        }),
+      );
+      return null;
+    },
+    [persist, workspace],
+  );
+
+  const deleteWorkspaceBudget = useCallback(
+    (id: string) => {
+      persist((prev) => ({
+        ...prev,
+        workspaceBudgets: (prev.workspaceBudgets ?? []).filter((b) => b.id !== id),
+      }));
+      cloudWrite(() => createClient()!.from("workspace_budgets").delete().eq("id", id));
+    },
+    [persist],
+  );
+
+  const workspaceBudgetFunded = useCallback(
+    (workspaceId?: string, year?: number, month?: number) => {
+      const wsId = workspaceId ?? workspace?.id;
+      if (!wsId) return 0;
+      const period = currentPeriod();
+      const y = year ?? period.year;
+      const m = month ?? period.month;
+      return data.transactions
+        .filter(
+          (t) =>
+            t.workspaceId === wsId &&
+            t.type === "space_contribution" &&
+            inPeriod(t.date, y, m),
+        )
+        .reduce((s, t) => s + t.amount, 0);
+    },
+    [data.transactions, workspace?.id],
+  );
+
+  const workspaceBudgetSpent = useCallback(
+    (workspaceId?: string, year?: number, month?: number) => {
+      const wsId = workspaceId ?? workspace?.id;
+      if (!wsId) return 0;
+      const period = currentPeriod();
+      const y = year ?? period.year;
+      const m = month ?? period.month;
+      return data.transactions
+        .filter(
+          (t) =>
+            t.workspaceId === wsId &&
+            (t.type === "expense" || t.type === "debt_payment") &&
+            inPeriod(t.date, y, m),
+        )
+        .reduce((s, t) => s + t.amount, 0);
+    },
+    [data.transactions, workspace?.id],
   );
 
   const addDebt = useCallback(
@@ -1596,6 +1739,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         accounts: prev.accounts.filter((a) => a.workspaceId !== id),
         categories: prev.categories.filter((c) => c.workspaceId !== id),
         budgets: prev.budgets.filter((b) => b.workspaceId !== id),
+        workspaceBudgets: (prev.workspaceBudgets ?? []).filter((b) => b.workspaceId !== id),
         debts: prev.debts.filter((d) => d.workspaceId !== id),
         savingsGoals: prev.savingsGoals.filter((g) => g.workspaceId !== id),
         transactions: prev.transactions.filter((t) => t.workspaceId !== id),
@@ -1627,6 +1771,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (tx.type === "transfer") {
           if (tx.accountId === accountId) balance -= tx.amount;
           if (tx.toAccountId === accountId) balance += tx.amount;
+        }
+        if (tx.type === "space_contribution" && tx.accountId === accountId) {
+          balance -= tx.amount;
         }
       }
       return balance;
@@ -1706,6 +1853,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (t.type === "savings_contribution" || t.type === "savings_withdrawal") {
           return Boolean(t.savingsGoalId && goalIds.has(t.savingsGoalId));
         }
+        if (t.type === "space_contribution") return true;
         // Transferencias del espacio activo
         return true;
       })
@@ -1776,6 +1924,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTransactionRecurring,
     upsertBudget,
     deleteBudget,
+    upsertWorkspaceBudget,
+    deleteWorkspaceBudget,
+    workspaceBudgetFunded,
+    workspaceBudgetSpent,
     addDebt,
     updateDebt,
     deleteDebt,
