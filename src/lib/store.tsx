@@ -1861,37 +1861,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const workspaceTransactions = useCallback(() => {
-    if (!workspace) return [];
-    const wsId = workspace.id;
-    const categoryIds = new Set(
-      data.categories.filter((c) => c.workspaceId === wsId).map((c) => c.id),
-    );
-    const debtIds = new Set(
-      data.debts.filter((d) => d.workspaceId === wsId).map((d) => d.id),
-    );
-    const goalIds = new Set(
-      data.savingsGoals.filter((g) => g.workspaceId === wsId).map((g) => g.id),
-    );
+    if (!workspace || !user) return [];
 
+    // En espacios familiares: solo movimientos de ese espacio.
+    if (workspace.type === "shared") {
+      const wsId = workspace.id;
+      const categoryIds = new Set(
+        data.categories.filter((c) => c.workspaceId === wsId).map((c) => c.id),
+      );
+      const debtIds = new Set(
+        data.debts.filter((d) => d.workspaceId === wsId).map((d) => d.id),
+      );
+      const goalIds = new Set(
+        data.savingsGoals.filter((g) => g.workspaceId === wsId).map((g) => g.id),
+      );
+
+      return data.transactions
+        .filter((t) => {
+          if (t.workspaceId !== wsId) return false;
+          if (t.type === "income" || t.type === "expense") {
+            return Boolean(t.categoryId && categoryIds.has(t.categoryId));
+          }
+          if (t.type === "debt_payment") {
+            return Boolean(t.debtId && debtIds.has(t.debtId));
+          }
+          if (t.type === "savings_contribution" || t.type === "savings_withdrawal") {
+            return Boolean(t.savingsGoalId && goalIds.has(t.savingsGoalId));
+          }
+          if (t.type === "space_contribution") return true;
+          return true;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+    }
+
+    // Perfil personal: movimientos personales + de espacios asociados (donde eres miembro).
+    const memberWsIds = new Set(
+      data.members.filter((m) => m.userId === user.id).map((m) => m.workspaceId),
+    );
     return data.transactions
-      .filter((t) => {
-        if (t.workspaceId !== wsId) return false;
-        // Ingresos/gastos: solo si la categoría es de este espacio
-        if (t.type === "income" || t.type === "expense") {
-          return Boolean(t.categoryId && categoryIds.has(t.categoryId));
-        }
-        if (t.type === "debt_payment") {
-          return Boolean(t.debtId && debtIds.has(t.debtId));
-        }
-        if (t.type === "savings_contribution" || t.type === "savings_withdrawal") {
-          return Boolean(t.savingsGoalId && goalIds.has(t.savingsGoalId));
-        }
-        if (t.type === "space_contribution") return true;
-        // Transferencias del espacio activo
-        return true;
-      })
+      .filter((t) => memberWsIds.has(t.workspaceId))
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
-  }, [data.categories, data.debts, data.savingsGoals, data.transactions, workspace]);
+  }, [
+    data.categories,
+    data.debts,
+    data.members,
+    data.savingsGoals,
+    data.transactions,
+    user,
+    workspace,
+  ]);
 
   const workspaceBudgets = useCallback(
     (year?: number, month?: number) => {

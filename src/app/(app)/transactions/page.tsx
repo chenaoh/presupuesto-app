@@ -377,7 +377,10 @@ export default function TransactionsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Movimientos</h1>
           <p className="muted mt-0.5 text-sm">
-            Solo del espacio activo ({workspace?.name ?? "…"}). Edita o elimina los que creaste.
+            {workspace?.type === "personal"
+              ? "Tu perfil personal y los movimientos de espacios a los que perteneces."
+              : `Solo del espacio activo (${workspace?.name ?? "…"}).`}{" "}
+            Edita o elimina los que creaste.
           </p>
         </div>
         <ManageToggle active={managing} onChange={setManaging} />
