@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#0F766E"/><circle cx="64" cy="64" r="28" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="#F4F7F5"/>
+  <g transform="translate(20 22)">
+    <polygon points="44,4 84,26 44,48 4,26" fill="#10B981"/>
+    <polygon points="4,26 44,48 44,84 4,62" fill="#0F766E"/>
+    <polygon points="44,48 84,26 84,62 44,84" fill="#0B1F3A"/>
+    <rect x="14" y="48" width="5" height="10" rx="1" fill="#fff"/>
+    <rect x="22" y="44" width="5" height="14" rx="1" fill="#fff"/>
+    <rect x="30" y="40" width="5" height="18" rx="1" fill="#fff"/>
+    <circle cx="64" cy="52" r="10" fill="none" stroke="#fff" stroke-width="2"/>
+    <text x="64" y="57" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">$</text>
+  </g>
+</svg>

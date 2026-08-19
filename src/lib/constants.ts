@@ -1,3 +1,4 @@
+import { DEFAULT_ACCENT } from "./brand";
 import type { AccountType, CategoryKind } from "./types";
 
 export const STORAGE_KEY = "presupuesto-app:v1";
@@ -48,10 +49,10 @@ export const BASE_CATEGORIES: Array<{
 ];
 
 export const ACCENT_PRESETS = [
-  "#1F6B4F",
+  DEFAULT_ACCENT,
   "#0D9488",
+  "#1F6B4F",
   "#2563EB",
   "#D97706",
   "#E11D48",
-  "#059669",
 ];

@@ -55,9 +55,21 @@ export default function ConsejosPage() {
         </p>
       </div>
 
-      <section className="card space-y-2 p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-2">
         <PeriodPicker compact />
         <p className="muted text-[11px] capitalize">{label}</p>
+      </div>
+
+      <section className="card tip-card p-4">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[color-mix(in_oklab,var(--accent)_16%,white)] text-accent">
+            <Lightbulb size={22} />
+          </span>
+          <div>
+            <p className="text-base font-bold">Tu asistente financiero</p>
+            <p className="muted text-xs">Alertas y oportunidades de este periodo.</p>
+          </div>
+        </div>
       </section>
 
       <ul className="space-y-2">
@@ -78,8 +90,8 @@ export default function ConsejosPage() {
 
       <p className="muted text-center text-xs">
         ¿Quieres ver el detalle?{" "}
-        <Link href="/transactions" className="font-semibold text-accent">
-          Ir a Movimientos
+        <Link href="/transactions" className="font-bold text-accent">
+          Ir a movimientos
         </Link>
       </p>
     </div>

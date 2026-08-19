@@ -10,7 +10,7 @@ function AccentSync({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    const accent = workspace?.accentColor || user?.accentColor || "#1F6B4F";
+    const accent = workspace?.accentColor || user?.accentColor || "#064E3B";
     root.style.setProperty("--accent", accent);
 
     if (!user) return;

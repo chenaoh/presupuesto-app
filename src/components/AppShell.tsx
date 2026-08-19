@@ -12,17 +12,19 @@ import {
   Settings,
   Users,
   LogOut,
-  X,
+  ChevronRight,
   Plus,
-  MoreHorizontal,
+  Menu,
   Lightbulb,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useApp } from "@/lib/store";
-import { clsx } from "@/lib/format";
-import { HelpButton } from "@/components/HelpButton";
+import { BrandMark } from "@/components/BrandMark";
+import { NewTxTypeSheet } from "@/components/NewTxTypeSheet";
 import { UserAvatar } from "@/components/UserAvatar";
+import { clsx } from "@/lib/format";
+import { useApp } from "@/lib/store";
 import { useRequireAccounts } from "@/lib/useRequireAccounts";
+import type { TransactionType } from "@/lib/types";
 
 const links = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -30,16 +32,43 @@ const links = [
   { href: "/accounts", label: "Cuentas", icon: Wallet },
   { href: "/categories", label: "Categorías", icon: Tags },
   { href: "/budgets", label: "Bolsillos", icon: PiggyBank },
-  { href: "/debts", label: "Deudas", icon: Landmark },
   { href: "/savings", label: "Ahorros", icon: Target },
+  { href: "/debts", label: "Deudas", icon: Landmark },
   { href: "/consejos", label: "Consejos", icon: Lightbulb },
   { href: "/workspaces", label: "Espacios", icon: Users },
   { href: "/settings", label: "Perfil", icon: Settings },
 ];
 
+const moreGroups = [
+  {
+    title: "Finanzas",
+    items: [
+      { href: "/transactions", label: "Movimientos", icon: ArrowLeftRight },
+      { href: "/accounts", label: "Cuentas", icon: Wallet },
+      { href: "/categories", label: "Categorías", icon: Tags },
+    ],
+  },
+  {
+    title: "Planificación",
+    items: [
+      { href: "/budgets", label: "Bolsillos", icon: PiggyBank },
+      { href: "/savings", label: "Ahorros", icon: Target },
+      { href: "/debts", label: "Deudas", icon: Landmark },
+    ],
+  },
+  {
+    title: "Otros",
+    items: [
+      { href: "/consejos", label: "Consejos", icon: Lightbulb },
+      { href: "/workspaces", label: "Espacios", icon: Users },
+      { href: "/settings", label: "Perfil", icon: Settings },
+    ],
+  },
+];
+
 const mobilePrimary = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-  { href: "/transactions", label: "Movim.", icon: ArrowLeftRight },
+  { href: "/transactions", label: "Movimientos", icon: ArrowLeftRight },
   { href: "/budgets", label: "Bolsillos", icon: PiggyBank },
 ];
 
@@ -57,6 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { ready, user, workspace, myWorkspaces, setActiveWorkspace, logout } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [typeOpen, setTypeOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { guard, dialog } = useRequireAccounts(
     "Para registrar un movimiento primero debes crear al menos una cuenta.",
@@ -85,7 +115,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!menuOpen) return;
-    scrollAllToTop(scrollRef.current);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -99,6 +128,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (pathname !== href) router.push(href);
   }
 
+  function openNew(type?: TransactionType) {
+    guard(() => {
+      if (type) {
+        go("/transactions");
+        window.setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("presupuesto:open-new-tx", { detail: { type } }),
+          );
+        }, 180);
+        return;
+      }
+      setTypeOpen(true);
+    });
+  }
+
   if (!ready || !user) {
     return (
       <div className="min-h-screen grid place-items-center muted">
@@ -109,35 +153,75 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
-      <header className="app-shell-header">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <UserAvatar
-              src={workspace?.avatarData}
-              name={workspace?.name}
-              size={28}
-              accent={workspace?.accentColor}
-            />
-            <div className="min-w-0">
-              <p className="brand truncate text-sm text-accent sm:text-base">
-                {workspace?.name ?? "Presupuesto"}
-              </p>
-              <p className="hidden truncate text-[10px] muted sm:block">
-                {workspace?.type === "shared" ? "Familiar" : "Personal"}
-              </p>
+      <aside className="app-sidebar">
+        <div className="flex items-center gap-2.5 px-2 pb-4">
+          <BrandMark size={36} />
+          <p className="brand text-lg text-accent">Presupuesto</p>
+        </div>
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+          {links.map(({ href, label, icon: Icon }) => (
+            <button
+              key={href}
+              type="button"
+              onClick={() => go(href)}
+              className={clsx(
+                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-semibold transition",
+                pathname === href
+                  ? "bg-[color-mix(in_oklab,var(--accent)_12%,transparent)] text-accent"
+                  : "muted hover:bg-[color-mix(in_oklab,var(--border)_40%,transparent)]",
+              )}
+            >
+              <Icon size={16} />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="mt-3 space-y-2 border-t border-border pt-3">
+          <div className="flex items-center gap-2 rounded-2xl bg-[color-mix(in_oklab,var(--accent)_8%,transparent)] px-2 py-2">
+            <UserAvatar src={user.avatarData} name={user.displayName} size={36} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-bold">{user.displayName}</p>
+              <select
+                className="mt-0.5 w-full border-0 bg-transparent p-0 text-[11px] font-semibold text-accent outline-none"
+                value={workspace?.id ?? ""}
+                onChange={(e) => setActiveWorkspace(e.target.value)}
+                aria-label="Espacio"
+              >
+                {myWorkspaces.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold muted hover:bg-[color-mix(in_oklab,var(--border)_40%,transparent)]"
+            onClick={() => go("/settings")}
+          >
+            <Settings size={15} />
+            Configuración
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold muted hover:bg-[color-mix(in_oklab,var(--border)_40%,transparent)]"
+            onClick={() => {
+              logout();
+              router.replace("/");
+            }}
+          >
+            <LogOut size={15} />
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      <div className="app-shell-main relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {pathname !== "/dashboard" && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 md:hidden">
             <select
-              className="select max-w-[120px] px-1.5 py-1 text-[10px] sm:max-w-[180px] sm:text-xs"
-              style={
-                workspace?.accentColor
-                  ? {
-                      borderColor: workspace.accentColor,
-                      boxShadow: `0 0 0 1px color-mix(in oklab, ${workspace.accentColor} 35%, transparent)`,
-                    }
-                  : undefined
-              }
+              className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-semibold text-accent outline-none"
               value={workspace?.id ?? ""}
               onChange={(e) => setActiveWorkspace(e.target.value)}
               aria-label="Espacio"
@@ -148,57 +232,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </option>
               ))}
             </select>
-            <HelpButton />
-            <button
-              type="button"
-              className="btn btn-ghost hidden px-2 py-1 text-xs md:inline-flex"
-              onClick={() => setMenuOpen(true)}
-            >
-              Más
-            </button>
-            <button
-              className="btn btn-ghost px-1.5 py-1"
-              onClick={() => {
-                logout();
-                router.replace("/");
-              }}
-              aria-label="Cerrar sesión"
-            >
-              <LogOut size={14} />
-            </button>
             <button type="button" onClick={() => go("/settings")} aria-label="Perfil">
               <UserAvatar src={user.avatarData} name={user.displayName} size={32} />
             </button>
           </div>
+        )}
+        <div ref={scrollRef} className="app-shell-scroll">
+          <div className="mx-auto max-w-6xl px-3 py-3 sm:px-5 sm:py-5">
+            <main key={pathname} className="rise min-w-0 pb-16 md:pb-20">
+              {children}
+            </main>
+          </div>
         </div>
-      </header>
 
-      <div ref={scrollRef} className="app-shell-scroll">
-        <div className="mx-auto grid max-w-6xl gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:grid-cols-[188px_1fr]">
-          <aside className="hidden md:block">
-            <nav className="card sticky top-3 space-y-0.5 p-2">
-              {links.map(({ href, label, icon: Icon }) => (
-                <button
-                  key={href}
-                  type="button"
-                  onClick={() => go(href)}
-                  className={clsx(
-                    "flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-semibold transition",
-                    pathname === href
-                      ? "bg-[color-mix(in_oklab,var(--accent)_16%,transparent)] text-accent"
-                      : "muted hover:bg-[color-mix(in_oklab,var(--border)_40%,transparent)]",
-                  )}
-                >
-                  <Icon size={15} />
-                  {label}
-                </button>
-              ))}
-            </nav>
-          </aside>
-
-          <main key={pathname} className="rise min-w-0 pb-2">
-            {children}
-          </main>
+        <div className="app-fab-desktop">
+          <button
+            type="button"
+            aria-label="Agregar movimiento"
+            onClick={() => openNew()}
+            className="nav-fab flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
+          >
+            <Plus size={26} strokeWidth={2.5} />
+          </button>
         </div>
       </div>
 
@@ -212,10 +267,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 type="button"
                 onClick={() => go(href)}
                 className={clsx(
-                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[9px] font-semibold",
-                  active
-                    ? "bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
-                    : "muted",
+                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[10px] font-semibold",
+                  active ? "text-accent" : "muted",
                 )}
               >
                 <Icon size={18} strokeWidth={active ? 2.5 : 2.1} />
@@ -227,14 +280,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             aria-label="Agregar movimiento"
-            onClick={() =>
-              guard(() => {
-                go("/transactions");
-                window.setTimeout(() => {
-                  window.dispatchEvent(new CustomEvent("presupuesto:open-new-tx"));
-                }, 50);
-              })
-            }
+            onClick={() => openNew()}
             className="nav-fab -mt-5 flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-lg"
           >
             <Plus size={26} strokeWidth={2.5} />
@@ -248,10 +294,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 type="button"
                 onClick={() => go(href)}
                 className={clsx(
-                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[9px] font-semibold",
-                  active
-                    ? "bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
-                    : "muted",
+                  "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[10px] font-semibold",
+                  active ? "text-accent" : "muted",
                 )}
               >
                 <Icon size={18} strokeWidth={active ? 2.5 : 2.1} />
@@ -264,63 +308,82 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             type="button"
             onClick={() => setMenuOpen(true)}
             className={clsx(
-              "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[9px] font-semibold",
-              menuOpen || !mobilePrimaryHrefs.has(pathname)
-                ? "bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
-                : "muted",
+              "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[10px] font-semibold",
+              menuOpen || !mobilePrimaryHrefs.has(pathname) ? "text-accent" : "muted",
             )}
           >
-            <MoreHorizontal
+            <Menu
               size={18}
               strokeWidth={menuOpen || !mobilePrimaryHrefs.has(pathname) ? 2.5 : 2.1}
             />
-            <span>Más</span>
+            <span>Menú</span>
           </button>
         </div>
       </nav>
 
       {dialog}
 
+      <NewTxTypeSheet
+        open={typeOpen}
+        onClose={() => setTypeOpen(false)}
+        onPick={(type) => {
+          setTypeOpen(false);
+          openNew(type);
+        }}
+      />
+
       {menuOpen && (
-        <div className="fixed inset-0 z-40">
+        <div className="fixed inset-0 z-40 md:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/35"
             aria-label="Cerrar menú"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-border bg-[var(--bg-elevated)] p-3 shadow-2xl safe-bottom md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-[380px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl">
-            <div className="mb-2 flex items-center justify-between px-1">
-              <p className="text-sm font-semibold">Secciones</p>
-              <button
-                type="button"
-                className="rounded-full p-1.5 muted"
-                aria-label="Cerrar"
-                onClick={() => setMenuOpen(false)}
-              >
-                <X size={16} />
-              </button>
+          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border border-border bg-[var(--bg-elevated)] p-4 shadow-2xl safe-bottom">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-base font-bold">Menú</p>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {links.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href;
-                return (
-                  <button
-                    key={href}
-                    type="button"
-                    onClick={() => go(href)}
-                    className={clsx(
-                      "flex flex-col items-center gap-1 rounded-2xl px-1 py-3 text-[11px] font-semibold",
-                      active
-                        ? "bg-[color-mix(in_oklab,var(--accent)_16%,transparent)] text-accent"
-                        : "muted hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]",
-                    )}
-                  >
-                    <Icon size={18} />
-                    <span className="truncate">{label}</span>
-                  </button>
-                );
-              })}
+            <div className="space-y-4">
+              {moreGroups.map((group) => (
+                <div key={group.title}>
+                  <p className="muted mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide">
+                    {group.title}
+                  </p>
+                  <ul className="overflow-hidden rounded-2xl border border-border">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = pathname === item.href;
+                      return (
+                        <li key={item.href} className="border-b border-border last:border-b-0">
+                          <button
+                            type="button"
+                            onClick={() => go(item.href)}
+                            className={clsx(
+                              "flex w-full items-center gap-3 px-3 py-3 text-sm font-semibold",
+                              active ? "text-accent" : "",
+                            )}
+                          >
+                            <span
+                              className={clsx(
+                                "grid h-9 w-9 place-items-center rounded-xl",
+                                active
+                                  ? "bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-accent"
+                                  : "bg-[color-mix(in_oklab,var(--border)_45%,transparent)] muted",
+                              )}
+                            >
+                              <Icon size={16} />
+                            </span>
+                            <span className="flex-1 text-left">{item.label}</span>
+                            <ChevronRight size={16} className="muted" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
             </div>
           </div>
         </div>

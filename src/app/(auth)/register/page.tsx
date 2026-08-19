@@ -44,7 +44,7 @@ export default function RegisterPage() {
             alt=""
             width={44}
             height={44}
-            className="h-11 w-11 rounded-xl object-cover"
+            className="h-11 w-11 rounded-xl bg-white object-contain"
             priority
           />
           <p className="brand text-3xl text-accent">Presupuesto</p>

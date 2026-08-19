@@ -26,8 +26,10 @@ type PeriodContextValue = {
   /** Rango del periodo anterior (misma duración), para comparar tendencias. */
   compareRange: DateRange;
   label: string;
+  monthTitle: string;
   setMode: (mode: PeriodMode) => void;
   setCustomRange: (from: string, to: string) => void;
+  shiftMonth: (delta: number) => void;
 };
 
 const STORAGE_KEY = "presupuesto-app:period";
@@ -178,6 +180,26 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
     setModeState("custom");
   }, []);
 
+  const shiftMonth = useCallback((delta: number) => {
+    const { year, month } = rangeAnchorMonth(range);
+    const d = new Date(year, month - 1 + delta, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const now = new Date();
+    if (y === now.getFullYear() && m === now.getMonth() + 1) {
+      setModeState("current");
+      return;
+    }
+    setCustomFrom(startOfMonth(y, m));
+    setCustomTo(endOfMonth(y, m));
+    setModeState("custom");
+  }, [range]);
+
+  const monthTitle = useMemo(() => {
+    const { year, month } = rangeAnchorMonth(range);
+    return monthLabel(year, month);
+  }, [range]);
+
   const value = useMemo(
     () => ({
       mode,
@@ -186,10 +208,23 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
       range,
       compareRange,
       label,
+      monthTitle,
       setMode,
       setCustomRange,
+      shiftMonth,
     }),
-    [mode, customFrom, customTo, range, compareRange, label, setMode, setCustomRange],
+    [
+      mode,
+      customFrom,
+      customTo,
+      range,
+      compareRange,
+      label,
+      monthTitle,
+      setMode,
+      setCustomRange,
+      shiftMonth,
+    ],
   );
 
   return <PeriodContext.Provider value={value}>{children}</PeriodContext.Provider>;

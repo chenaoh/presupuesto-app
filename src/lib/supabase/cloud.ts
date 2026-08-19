@@ -438,7 +438,7 @@ export async function loadCloudData(userId: string, email: string): Promise<AppD
       passwordHash: "",
       displayName: email.split("@")[0] || "Usuario",
       theme: "system",
-      accentColor: "#1F6B4F",
+      accentColor: "#064E3B",
       locale: "es-CO",
       currency: "COP",
       createdAt: new Date().toISOString(),

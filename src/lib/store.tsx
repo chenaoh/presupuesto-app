@@ -348,7 +348,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             passwordHash,
             displayName: displayName.trim(),
             theme: "system",
-            accentColor: "#1F6B4F",
+            accentColor: "#064E3B",
             locale: "es-CO",
             currency: "COP",
             createdAt: now,

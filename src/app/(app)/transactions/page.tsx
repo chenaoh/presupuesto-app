@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Download, Pencil, Repeat2, Trash2 } from "lucide-react";
+import { Download, Pencil, Repeat2, Search, Trash2 } from "lucide-react";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
@@ -75,6 +75,7 @@ export default function TransactionsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [managing, setManaging] = useState(false);
+  const [search, setSearch] = useState("");
   const { guard, dialog } = useRequireAccounts(
     "Para registrar un movimiento primero debes crear al menos una cuenta.",
   );
@@ -133,10 +134,33 @@ export default function TransactionsPage() {
     ) {
       return false;
     }
-    if (filter === "all") return true;
-    if (filter === "recurring") return Boolean(t.recurring);
-    return t.type === filter;
+    if (filter === "all") {
+      /* keep */
+    } else if (filter === "recurring") {
+      if (!t.recurring) return false;
+    } else if (t.type !== filter) {
+      return false;
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const cat = t.categoryId
+        ? data.categories.find((c) => c.id === t.categoryId)?.name ?? ""
+        : "";
+      const hay = `${t.note} ${cat} ${t.amount} ${t.type}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
   });
+  const groupedTxs = useMemo(() => {
+    const map = new Map<string, Transaction[]>();
+    for (const tx of txs) {
+      const day = tx.date.slice(0, 10);
+      const list = map.get(day) ?? [];
+      list.push(tx);
+      map.set(day, list);
+    }
+    return [...map.entries()];
+  }, [txs]);
   const currency = user?.currency ?? "COP";
 
   function resetFields() {
@@ -155,16 +179,18 @@ export default function TransactionsPage() {
     setDate(todayIso());
   }
 
-  function openCreate() {
+  function openCreate(preset?: TransactionType) {
     guard(() => {
       resetFields();
+      if (preset) setType(preset);
       setFormOpen(true);
     });
   }
 
   useEffect(() => {
-    function onOpen() {
-      openCreate();
+    function onOpen(e: Event) {
+      const type = (e as CustomEvent<{ type?: TransactionType }>).detail?.type;
+      openCreate(type);
     }
     window.addEventListener("presupuesto:open-new-tx", onOpen);
     return () => window.removeEventListener("presupuesto:open-new-tx", onOpen);
@@ -386,10 +412,10 @@ export default function TransactionsPage() {
         <ManageToggle active={managing} onChange={setManaging} />
       </div>
 
-      <section className="card space-y-2 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <PeriodPicker compact />
         <p className="muted text-[11px] capitalize">{periodLabelText}</p>
-      </section>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-primary text-sm" onClick={openCreate}>
@@ -407,13 +433,37 @@ export default function TransactionsPage() {
         <p className={`text-xs ${error ? "text-danger" : "text-income"}`}>{error ?? message}</p>
       )}
 
+      <div className="relative">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 muted" />
+        <input
+          className="input pl-9"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar movimientos..."
+        />
+      </div>
+
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <FilterPill
           active={filter === "all"}
-          color="#475569"
+          color="#064E3B"
           onClick={() => setFilter("all")}
         >
           Todos
+        </FilterPill>
+        <FilterPill
+          active={filter === "expense"}
+          color="#c2410c"
+          onClick={() => setFilter("expense")}
+        >
+          Gastos
+        </FilterPill>
+        <FilterPill
+          active={filter === "income"}
+          color="#047857"
+          onClick={() => setFilter("income")}
+        >
+          Ingresos
         </FilterPill>
         <FilterPill
           active={filter === "recurring"}
@@ -422,7 +472,7 @@ export default function TransactionsPage() {
         >
           Recurrentes
         </FilterPill>
-        {TYPES.map((t) => (
+        {TYPES.filter((t) => t.value !== "expense" && t.value !== "income").map((t) => (
           <FilterPill
             key={t.value}
             active={filter === t.value}
@@ -462,93 +512,100 @@ export default function TransactionsPage() {
       {txs.length === 0 ? (
         <p className="muted text-sm">Sin movimientos en este periodo con los filtros actuales.</p>
       ) : null}
-      <div className="card overflow-hidden">
-        {txs.length === 0 && <p className="muted p-3 text-sm">Sin movimientos.</p>}
-        <ul className="divide-y divide-border">
-          {txs.map((tx) => {
-            const positive = tx.type === "income" || tx.type === "savings_withdrawal";
-            const mine = user?.id === tx.createdBy;
-            const accent = txAccent(tx);
-            const category = txCategoryLabel(tx);
-            return (
-              <li key={tx.id} className="flex items-stretch gap-1 px-1.5 py-1 sm:px-2">
-                <button
-                  type="button"
-                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-2 text-left transition hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]"
-                  onClick={() => setDetailTx(tx)}
-                >
-                  <span className="tx-swatch" style={{ ["--swatch" as string]: accent }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="truncate text-sm font-semibold">{txDescription(tx)}</p>
+      <div className="space-y-4">
+        {groupedTxs.map(([day, dayTxs]) => (
+          <div key={day}>
+            <p className="muted mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wide">
+              {formatDate(day)}
+            </p>
+            <ul className="card divide-y divide-border overflow-hidden">
+              {dayTxs.map((tx) => {
+                const positive = tx.type === "income" || tx.type === "savings_withdrawal";
+                const mine = user?.id === tx.createdBy;
+                const accent = txAccent(tx);
+                const category = txCategoryLabel(tx);
+                return (
+                  <li key={tx.id} className="flex items-stretch gap-1 px-1.5 py-1 sm:px-2">
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-2 text-left transition hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]"
+                      onClick={() => setDetailTx(tx)}
+                    >
+                      <span className="tx-swatch" style={{ ["--swatch" as string]: accent }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-sm font-semibold">{txDescription(tx)}</p>
+                          {tx.recurring && (
+                            <span
+                              className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                              style={{
+                                background: `color-mix(in oklab, ${accent} 18%, var(--bg-elevated))`,
+                                color: accent,
+                              }}
+                            >
+                              rec.
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] font-medium" style={{ color: accent }}>
+                          {category}
+                        </p>
+                      </div>
+                      <p
+                        className={`shrink-0 self-center text-sm font-semibold tabular-nums ${
+                          positive ? "text-income" : "text-expense"
+                        }`}
+                      >
+                        {positive ? "+" : "-"}
+                        {formatMoney(tx.amount, currency)}
+                      </p>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1 pr-1">
                       {tx.recurring && (
-                        <span
-                          className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                          style={{
-                            background: `color-mix(in oklab, ${accent} 18%, var(--bg-elevated))`,
-                            color: accent,
-                          }}
+                        <button
+                          type="button"
+                          className="rounded-md border border-border p-1.5 muted hover:text-fg"
+                          title="Repetir"
+                          onClick={() => openRepeat(tx)}
                         >
-                          rec.
-                        </span>
+                          <Repeat2 size={13} />
+                        </button>
+                      )}
+                      {mine && (
+                        <button
+                          type="button"
+                          className="rounded-md border border-border p-1.5 muted hover:text-fg"
+                          title="Editar"
+                          onClick={() => openEdit(tx)}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                      {managing && mine && (
+                        <button
+                          type="button"
+                          className="rounded-md border border-red-300 bg-red-50 p-1.5 text-red-700"
+                          title="Borrar"
+                          onClick={() => onDelete(tx.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       )}
                     </div>
-                    <p className="mt-0.5 truncate text-[11px] font-medium" style={{ color: accent }}>
-                      {category}
-                    </p>
-                    <p className="muted truncate text-[11px]">{formatDate(tx.date)}</p>
-                  </div>
-                  <p
-                    className={`shrink-0 self-center text-sm font-semibold tabular-nums ${
-                      positive ? "text-income" : "text-expense"
-                    }`}
-                  >
-                    {positive ? "+" : "-"}
-                    {formatMoney(tx.amount, currency)}
-                  </p>
-                </button>
-                <div className="flex shrink-0 items-center gap-1 pr-1">
-                  {tx.recurring && (
-                    <button
-                      type="button"
-                      className="rounded-md border border-border p-1.5 muted hover:text-fg"
-                      title="Repetir"
-                      onClick={() => openRepeat(tx)}
-                    >
-                      <Repeat2 size={13} />
-                    </button>
-                  )}
-                  {mine && (
-                    <button
-                      type="button"
-                      className="rounded-md border border-border p-1.5 muted hover:text-fg"
-                      title="Editar"
-                      onClick={() => openEdit(tx)}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
-                  {managing && mine && (
-                    <button
-                      type="button"
-                      className="rounded-md border border-red-300 bg-red-50 p-1.5 text-red-700"
-                      title="Borrar"
-                      onClick={() => onDelete(tx.id)}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </div>
 
       <Modal
         open={!!detailTx}
         onClose={() => setDetailTx(null)}
         title="Detalle del movimiento"
+        variant="sheet"
+        hideFooter
       >
         {detailTx && (
           <div className="space-y-3">
@@ -611,6 +668,7 @@ export default function TransactionsPage() {
         open={formOpen}
         onClose={closeForm}
         title={editingId ? "Editar movimiento" : "Nuevo movimiento"}
+        hideFooter
       >
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -854,7 +912,13 @@ export default function TransactionsPage() {
         </form>
       </Modal>
 
-      <Modal open={!!repeatId} onClose={() => setRepeatId(null)} title="Repetir movimiento">
+      <Modal
+        open={!!repeatId}
+        onClose={() => setRepeatId(null)}
+        title="Repetir movimiento"
+        variant="sheet"
+        hideFooter
+      >
         <div className="space-y-3">
           <p className="muted text-xs">
             Se copia el tipo, categoría y cuentas. Puedes ajustar fecha, monto y descripción.

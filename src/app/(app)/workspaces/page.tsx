@@ -387,7 +387,7 @@ export default function WorkspacesPage() {
               <input
                 type="color"
                 className="h-8 w-10 cursor-pointer rounded border border-border bg-transparent"
-                value={editAccent || "#1F6B4F"}
+                value={editAccent || "#064E3B"}
                 onChange={(e) => setEditAccent(e.target.value)}
               />
               {editAccent && (

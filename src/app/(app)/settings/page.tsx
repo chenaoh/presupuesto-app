@@ -23,7 +23,7 @@ export default function SettingsPage() {
     updateProfile({ theme: mode });
     const root = document.documentElement;
     root.dataset.theme = mode;
-    const accent = user.accentColor || "#1F6B4F";
+    const accent = user.accentColor || "#064E3B";
     if (mode === "custom") {
       setTheme("light");
       root.classList.remove("dark");

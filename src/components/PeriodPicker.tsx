@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { CalendarDays, ChevronDown } from "lucide-react";
+import { Modal } from "@/components/Modal";
 import { usePeriod, type PeriodMode } from "@/lib/period";
 
 const MODES: Array<{ value: PeriodMode; label: string }> = [
@@ -9,20 +12,60 @@ const MODES: Array<{ value: PeriodMode; label: string }> = [
 ];
 
 export function PeriodPicker({ compact }: { compact?: boolean }) {
-  const { mode, customFrom, customTo, label, setMode, setCustomRange } = usePeriod();
+  const { mode, label } = usePeriod();
+  const [open, setOpen] = useState(false);
+
+  if (!compact) {
+    return <PeriodFields />;
+  }
+
+  const chip =
+    mode === "current" ? "Este mes" : mode === "previous" ? "Mes anterior" : "Rango";
 
   return (
-    <div className={compact ? "space-y-1.5" : "space-y-2"}>
-      <div className="flex flex-wrap gap-1.5">
+    <>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-semibold"
+        onClick={() => setOpen(true)}
+      >
+        <CalendarDays size={14} />
+        {chip}
+        <ChevronDown size={14} className="muted" />
+      </button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Selecciona un período"
+        variant="sheet"
+        hideFooter
+      >
+        <PeriodFields onApply={() => setOpen(false)} />
+        <p className="muted mt-2 text-[11px] capitalize">{label}</p>
+      </Modal>
+    </>
+  );
+}
+
+function PeriodFields({ onApply }: { onApply?: () => void }) {
+  const { mode, customFrom, customTo, setMode, setCustomRange } = usePeriod();
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
         {MODES.map((m) => (
-          <button
+          <label
             key={m.value}
-            type="button"
-            className={`pill text-[11px] ${mode === m.value ? "is-selected" : ""}`}
-            onClick={() => setMode(m.value)}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold"
           >
+            <input
+              type="radio"
+              name="period-mode"
+              checked={mode === m.value}
+              onChange={() => setMode(m.value)}
+            />
             {m.label}
-          </button>
+          </label>
         ))}
       </div>
       {mode === "custom" && (
@@ -47,7 +90,11 @@ export function PeriodPicker({ compact }: { compact?: boolean }) {
           </div>
         </div>
       )}
-      {!compact && <p className="muted text-xs capitalize">{label}</p>}
+      {onApply && (
+        <button type="button" className="btn btn-primary w-full" onClick={onApply}>
+          Aplicar
+        </button>
+      )}
     </div>
   );
 }
