@@ -504,7 +504,7 @@ export default function AccountsPage() {
                 <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{flowLabel}</p>
-                    <p className="muted text-[11px]">
+                    <p className="muted truncate text-[11px]">
                       {formatDate(t.date)}
                       {t.note ? ` · ${t.note}` : ""}
                     </p>

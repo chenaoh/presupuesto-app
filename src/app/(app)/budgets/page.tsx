@@ -343,7 +343,7 @@ export default function BudgetsPage() {
                 {myContributions.map((t) => (
                   <li
                     key={t.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border px-2 py-1.5"
+                    className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border px-2 py-1.5"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">
@@ -443,7 +443,7 @@ export default function BudgetsPage() {
                   return (
                     <li
                       key={t.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-border px-2 py-1.5"
+                      className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border px-2 py-1.5"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">

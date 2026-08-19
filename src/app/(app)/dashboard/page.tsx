@@ -105,7 +105,7 @@ export default function DashboardPage() {
           Hola, {firstName} <span aria-hidden>👋</span>
         </h1>
         <select
-          className="mt-1 max-w-[180px] border-0 bg-transparent p-0 text-sm font-semibold text-accent outline-none md:hidden"
+          className="mt-1 block w-[min(100%,12rem)] max-w-full border-0 bg-transparent p-0 text-sm font-semibold text-accent outline-none md:hidden"
           value={workspace?.id ?? ""}
           onChange={(e) => setActiveWorkspace(e.target.value)}
           aria-label="Espacio"
@@ -359,16 +359,16 @@ export default function DashboardPage() {
             const cat = workspaceCategories().find((c) => c.id === t.categoryId);
             const positive = t.type === "income" || t.type === "savings_withdrawal";
             return (
-              <li key={t.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <li key={t.id} className="flex min-w-0 items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                 <CategoryIcon icon={cat?.icon} color={cat?.color || "var(--accent)"} size={16} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-semibold" title={t.note || cat?.name}>
                     {t.note || cat?.name || itemLabel(t.workspaceId, t.type)}
                   </p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
                     {cat && (
                       <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        className="max-w-[9rem] truncate rounded-full px-2 py-0.5 text-[10px] font-semibold"
                         style={{
                           background: `color-mix(in oklab, ${cat.color} 16%, var(--bg-elevated))`,
                           color: cat.color,
@@ -397,17 +397,17 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {greeting}
       {periodRow}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(16rem,1fr)]">
-        <div className="space-y-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(16rem,1fr)]">
+        <div className="min-w-0 space-y-4">
           {saldoCard}
           {gastosCard}
           {recentCard}
         </div>
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {insightsCard}
           {pocketsCard}
         </div>

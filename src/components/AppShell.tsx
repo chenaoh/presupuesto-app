@@ -238,8 +238,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <div ref={scrollRef} className="app-shell-scroll">
-          <div className="mx-auto max-w-6xl px-3 py-3 sm:px-5 sm:py-5">
-            <main key={pathname} className="rise min-w-0 pb-16 md:pb-20">
+          <div className="mx-auto min-w-0 max-w-6xl px-3 py-3 sm:px-5 sm:py-5">
+            <main key={pathname} className="rise min-w-0 overflow-x-hidden pb-16 md:pb-20">
               {children}
             </main>
           </div>

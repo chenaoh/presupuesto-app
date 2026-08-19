@@ -97,6 +97,8 @@ textarea {
   border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .tip-card {

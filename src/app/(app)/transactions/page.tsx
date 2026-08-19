@@ -525,7 +525,7 @@ export default function TransactionsPage() {
                 const accent = txAccent(tx);
                 const category = txCategoryLabel(tx);
                 return (
-                  <li key={tx.id} className="flex items-stretch gap-1 px-1.5 py-1 sm:px-2">
+                  <li key={tx.id} className="flex min-w-0 items-stretch gap-1 px-1.5 py-1 sm:px-2">
                     <button
                       type="button"
                       className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-2 text-left transition hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]"
@@ -533,8 +533,10 @@ export default function TransactionsPage() {
                     >
                       <span className="tx-swatch" style={{ ["--swatch" as string]: accent }} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-sm font-semibold">{txDescription(tx)}</p>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <p className="min-w-0 truncate text-sm font-semibold" title={txDescription(tx)}>
+                            {txDescription(tx)}
+                          </p>
                           {tx.recurring && (
                             <span
                               className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
