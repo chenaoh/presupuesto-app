@@ -418,7 +418,7 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary text-sm" onClick={openCreate}>
+        <button type="button" className="btn btn-primary text-sm" onClick={() => openCreate()}>
           + Nuevo
         </button>
         <button type="button" className="btn btn-ghost text-sm" onClick={exportExpensesCsv}>
