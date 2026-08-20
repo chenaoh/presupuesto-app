@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -36,6 +36,23 @@ export default function DashboardPage() {
   } = useApp();
   const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod();
   const [categoryPreview, setCategoryPreview] = useState<CategorySlice | null>(null);
+  const gastosPreviewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCategoryPreview(null);
+  }, [workspace?.id, range.from, range.to]);
+
+  useEffect(() => {
+    if (!categoryPreview) return;
+    function onPointerDown(event: PointerEvent) {
+      const root = gastosPreviewRef.current;
+      if (root && !root.contains(event.target as Node)) {
+        setCategoryPreview(null);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [categoryPreview]);
 
   const currency = user?.currency ?? "COP";
   const allWsTxs = workspaceTransactions();
@@ -194,7 +211,8 @@ export default function DashboardPage() {
       {byCategory.length === 0 ? (
         <p className="muted text-sm">Aún no hay gastos en este periodo.</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
+        <div ref={gastosPreviewRef}>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
           <div className="relative mx-auto h-44 w-full max-w-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -260,48 +278,49 @@ export default function DashboardPage() {
               );
             })}
           </ul>
-        </div>
-      )}
-      {categoryPreview && (
-        <div className="mt-3 rounded-2xl border border-border bg-[color-mix(in_oklab,var(--border)_22%,transparent)] p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <CategoryIcon
-                icon={categoryPreview.icon}
-                color={categoryPreview.color}
-                size={18}
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{categoryPreview.name}</p>
-                <p className="muted text-[11px] capitalize">{label}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn btn-ghost shrink-0 px-2.5 py-1 text-xs"
-              onClick={() => goToCategory(categoryPreview.id)}
-            >
-              Ver
-            </button>
           </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-[color-mix(in_oklab,var(--expense)_10%,transparent)] px-2.5 py-2">
-              <p className="muted text-[10px]">Gastado</p>
-              <p className="text-xs font-bold text-expense tabular-nums">
-                {formatMoney(categoryPreview.value, currency)}
+          {categoryPreview && (
+            <div className="mt-3 rounded-2xl border border-border bg-[color-mix(in_oklab,var(--border)_22%,transparent)] p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <CategoryIcon
+                    icon={categoryPreview.icon}
+                    color={categoryPreview.color}
+                    size={18}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{categoryPreview.name}</p>
+                    <p className="muted text-[11px] capitalize">{label}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost shrink-0 px-2.5 py-1 text-xs"
+                  onClick={() => goToCategory(categoryPreview.id)}
+                >
+                  Ver
+                </button>
+              </div>
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-[color-mix(in_oklab,var(--expense)_10%,transparent)] px-2.5 py-2">
+                  <p className="muted text-[10px]">Gastado</p>
+                  <p className="text-xs font-bold text-expense tabular-nums">
+                    {formatMoney(categoryPreview.value, currency)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-2.5 py-2">
+                  <p className="muted text-[10px]">Del total</p>
+                  <p className="text-xs font-bold tabular-nums">{previewPct}%</p>
+                </div>
+              </div>
+              <p className="muted mt-2 text-[11px]">
+                {previewTxCount} movimiento{previewTxCount === 1 ? "" : "s"} en este periodo.
+                {previewBudget
+                  ? ` Bolsillo: ${formatMoney(spentInCategory(categoryPreview.id, year, month), currency)} / ${formatMoney(previewBudget.limitAmount, currency)}.`
+                  : ""}
               </p>
             </div>
-            <div className="rounded-xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-2.5 py-2">
-              <p className="muted text-[10px]">Del total</p>
-              <p className="text-xs font-bold tabular-nums">{previewPct}%</p>
-            </div>
-          </div>
-          <p className="muted mt-2 text-[11px]">
-            {previewTxCount} movimiento{previewTxCount === 1 ? "" : "s"} en este periodo.
-            {previewBudget
-              ? ` Bolsillo: ${formatMoney(spentInCategory(categoryPreview.id, year, month), currency)} / ${formatMoney(previewBudget.limitAmount, currency)}.`
-              : ""}
-          </p>
+          )}
         </div>
       )}
       {byCategory.length > 0 && (
