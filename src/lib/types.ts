@@ -51,6 +51,8 @@ export interface Workspace {
   avatarData?: string;
   /** Color de acento del espacio; si falta, se usa el del perfil. */
   accentColor?: string;
+  /** Etiqueta libre (Hogar, Trabajo, etc.). Independiente de personal | shared. */
+  kind?: string;
 }
 
 export interface WorkspaceMember {

@@ -167,3 +167,10 @@ export function inPeriod(isoDate: string, year: number, month: number) {
   const d = parseLocalDate(isoDate);
   return d.getFullYear() === year && d.getMonth() + 1 === month;
 }
+
+/** Personal vs etiqueta libre del espacio compartido (nunca “Familiar” fijo). */
+export function workspaceKindLabel(w: { type: string; kind?: string }) {
+  if (w.type === "personal") return "Personal";
+  const kind = w.kind?.trim();
+  return kind || "Compartido";
+}

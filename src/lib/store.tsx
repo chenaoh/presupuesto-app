@@ -96,7 +96,7 @@ type AppContextValue = {
   updateProfile: (
     patch: Partial<Pick<Profile, "displayName" | "theme" | "accentColor" | "avatarData">>,
   ) => void;
-  createSharedWorkspace: (name: string) => Promise<string | null>;
+  createSharedWorkspace: (name: string, kind?: string) => Promise<string | null>;
   createInvite: () => Promise<string | null>;
   acceptInvite: (code: string) => Promise<string | null>;
   addCategory: (name: string, kind: CategoryKind, color?: string, icon?: string) => string | null;
@@ -167,7 +167,7 @@ type AppContextValue = {
   renameWorkspace: (id: string, name: string) => string | null;
   updateWorkspace: (
     id: string,
-    patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor">>,
+    patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor" | "kind">>,
   ) => string | null;
   deleteWorkspace: (id: string) => string | null;
   accountBalance: (accountId: string) => number;
@@ -451,13 +451,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const createSharedWorkspace = useCallback(
-    async (name: string) => {
+    async (name: string, kind?: string) => {
       if (!user) return "Debes iniciar sesión.";
       const trimmed = name.trim();
-      if (!trimmed) return "Escribe un nombre para el espacio familiar.";
+      if (!trimmed) return "Escribe un nombre para el espacio.";
+      const spaceKind = kind?.trim() || undefined;
 
       if (cloudEnabled()) {
-        const result = await cloudCreateSharedWorkspace(user.id, trimmed);
+        const result = await cloudCreateSharedWorkspace(user.id, trimmed, spaceKind);
         if (result.error) return result.error;
         await refreshCloud();
         return null;
@@ -478,6 +479,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             type: "shared",
             createdBy: user.id,
             createdAt: now,
+            kind: spaceKind,
           },
         ],
         members: [
@@ -1031,7 +1033,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!input.accountId) return "Selecciona tu cuenta personal para el aporte.";
         const targetWs = data.workspaces.find((w) => w.id === targetId);
         if (!targetWs || targetWs.type !== "shared") {
-          return "El aporte solo aplica a un espacio familiar.";
+          return "El aporte solo aplica a un espacio compartido.";
         }
         const acc = data.accounts.find((a) => a.id === input.accountId);
         if (!personal || !acc || acc.workspaceId !== personal.id) {
@@ -1168,7 +1170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!input.accountId) return "Selecciona tu cuenta personal para el aporte.";
         const targetWs = data.workspaces.find((w) => w.id === targetId);
         if (!targetWs || targetWs.type !== "shared") {
-          return "El aporte solo aplica a un espacio familiar.";
+          return "El aporte solo aplica a un espacio compartido.";
         }
         const acc = data.accounts.find((a) => a.id === input.accountId);
         if (!personal || !acc || acc.workspaceId !== personal.id) {
@@ -1428,7 +1430,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const target = data.workspaces.find((w) => w.id === input.workspaceId);
       if (!target) return "Espacio no encontrado.";
       if (target.type !== "shared") {
-        return "El presupuesto de espacio solo aplica a espacios familiares.";
+        return "El presupuesto de espacio solo aplica a espacios compartidos.";
       }
       const allowed = data.members.some(
         (m) => m.userId === user.id && m.workspaceId === target.id,
@@ -1756,11 +1758,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateWorkspace = useCallback(
-    (id: string, patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor">>) => {
+    (id: string, patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor" | "kind">>) => {
       const ws = data.workspaces.find((w) => w.id === id);
       if (!ws) return "Espacio no encontrado.";
       const nextName = patch.name !== undefined ? patch.name.trim() : undefined;
       if (patch.name !== undefined && !nextName) return "Nombre inválido.";
+      const nextKind = patch.kind !== undefined ? patch.kind.trim() : undefined;
 
       persist((prev) => ({
         ...prev,
@@ -1768,6 +1771,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (w.id !== id) return w;
           const merged = { ...w };
           if (nextName !== undefined) merged.name = nextName;
+          if (patch.kind !== undefined) {
+            if (nextKind) merged.kind = nextKind;
+            else delete merged.kind;
+          }
           if (patch.avatarData !== undefined) {
             if (patch.avatarData) merged.avatarData = patch.avatarData;
             else delete merged.avatarData;
@@ -1782,6 +1789,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (cloudEnabled()) {
         void cloudUpdateWorkspace(id, {
           ...(nextName !== undefined ? { name: nextName } : {}),
+          ...(patch.kind !== undefined ? { kind: nextKind ?? "" } : {}),
           ...(patch.avatarData !== undefined ? { avatarData: patch.avatarData } : {}),
           ...(patch.accentColor !== undefined ? { accentColor: patch.accentColor } : {}),
         });

@@ -9,7 +9,7 @@ import { ACCOUNT_TYPE_LABELS } from "@/lib/constants";
 import { accountColor } from "@/lib/colors";
 import { formatDate, formatMoney } from "@/lib/format";
 import { filterTxs } from "@/lib/insights";
-import { usePeriod } from "@/lib/period";
+import { rangeAnchorMonth, usePeriod } from "@/lib/period";
 import { useApp } from "@/lib/store";
 import type { Account, AccountType, Institution } from "@/lib/types";
 
@@ -29,6 +29,10 @@ export default function AccountsPage() {
     deleteAccount,
     itemLabel,
     workspaceTransactions,
+    personalAccountsTotal,
+    workspaceBudgetBalance,
+    workspaceBudgetFunded,
+    workspaceBudgetSpent,
   } = useApp();
   const { range, label: periodLabelText } = usePeriod();
 
@@ -48,6 +52,16 @@ export default function AccountsPage() {
   const currency = user?.currency ?? "COP";
   const accounts = workspaceAccounts();
   const hasInstitutions = institutions.length > 0;
+  const { year, month } = rangeAnchorMonth(range);
+  const isShared = workspace?.type === "shared";
+  const isPersonal = workspace?.type === "personal";
+  const accountsTotal = isPersonal
+    ? personalAccountsTotal()
+    : isShared
+      ? workspaceBudgetBalance(workspace?.id, year, month)
+      : accounts.reduce((s, a) => s + accountBalance(a.id), 0);
+  const spaceFunded = isShared ? workspaceBudgetFunded(workspace?.id, year, month) : 0;
+  const spaceSpentBudget = isShared ? workspaceBudgetSpent(workspace?.id, year, month) : 0;
 
   const accountsByType = useMemo(() => {
     const order = Object.keys(ACCOUNT_TYPE_LABELS) as AccountType[];
@@ -197,6 +211,25 @@ export default function AccountsPage() {
         </div>
         <ManageToggle active={managing} onChange={setManaging} />
       </div>
+
+      <section className="card balance-hero p-4 sm:p-5">
+        <p className="muted text-xs font-semibold uppercase tracking-wide">
+          {isShared ? "Saldo del presupuesto" : "Saldo total"}
+        </p>
+        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+          {formatMoney(accountsTotal, currency)}
+        </p>
+        {isShared ? (
+          <p className="muted mt-1 text-xs">
+            Aportado {formatMoney(spaceFunded, currency)} − gastado{" "}
+            {formatMoney(spaceSpentBudget, currency)}.
+          </p>
+        ) : isPersonal ? (
+          <p className="muted mt-1 text-xs">Suma de tus cuentas bancarias del perfil personal.</p>
+        ) : (
+          <p className="muted mt-1 text-xs">Suma de las cuentas de este espacio.</p>
+        )}
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-primary text-sm" onClick={openNewAccount}>

@@ -56,3 +56,5 @@ export const ACCENT_PRESETS = [
   "#D97706",
   "#E11D48",
 ];
+
+export const SPACE_KIND_PRESETS = ["Hogar", "Trabajo", "Proyecto", "Viaje", "Pareja", "Otro"];

@@ -1,15 +1,17 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { Camera, Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { PeriodPicker } from "@/components/PeriodPicker";
 import { UserAvatar } from "@/components/UserAvatar";
 import { fileToAvatarDataUrl } from "@/lib/avatar";
-import { ACCENT_PRESETS } from "@/lib/constants";
+import { ACCENT_PRESETS, SPACE_KIND_PRESETS } from "@/lib/constants";
+import { clsx, formatDate, formatMoney, workspaceKindLabel } from "@/lib/format";
+import { usePeriod } from "@/lib/period";
 import { useApp } from "@/lib/store";
 import type { Workspace } from "@/lib/types";
-import { clsx } from "@/lib/format";
 
 export default function WorkspacesPage() {
   const {
@@ -24,14 +26,18 @@ export default function WorkspacesPage() {
     deleteWorkspace,
     data,
     memberName,
+    user,
   } = useApp();
+  const { range, label: periodLabel } = usePeriod();
   const [name, setName] = useState("");
+  const [kind, setKind] = useState("Hogar");
   const [inviteCode, setInviteCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editKind, setEditKind] = useState("");
   const [editAccent, setEditAccent] = useState("");
   const [managing, setManaging] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -42,17 +48,51 @@ export default function WorkspacesPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editing = editingId ? myWorkspaces.find((w) => w.id === editingId) : null;
+  const currency = user?.currency ?? "COP";
+
+  const contributionRows = useMemo(() => {
+    if (!workspace || workspace.type !== "shared") return [];
+    const members = data.members.filter((m) => m.workspaceId === workspace.id);
+    const txs = data.transactions.filter(
+      (t) => t.workspaceId === workspace.id && t.type === "space_contribution",
+    );
+    return members
+      .map((m) => {
+        const mine = txs.filter((t) => t.createdBy === m.userId);
+        const inRange = mine.filter(
+          (t) => t.date.slice(0, 10) >= range.from && t.date.slice(0, 10) <= range.to,
+        );
+        return {
+          userId: m.userId,
+          name: memberName(m.userId),
+          count: mine.length,
+          periodTotal: inRange.reduce((s, t) => s + t.amount, 0),
+          allTotal: mine.reduce((s, t) => s + t.amount, 0),
+          latest: [...mine].sort((a, b) => b.date.localeCompare(a.date))[0],
+        };
+      })
+      .sort((a, b) => b.allTotal - a.allTotal);
+  }, [data.members, data.transactions, memberName, range.from, range.to, workspace]);
+
+  const contributionHistory = useMemo(() => {
+    if (!workspace || workspace.type !== "shared") return [];
+    return data.transactions
+      .filter((t) => t.workspaceId === workspace.id && t.type === "space_contribution")
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 12);
+  }, [data.transactions, workspace]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    const err = await createSharedWorkspace(name);
+    const err = await createSharedWorkspace(name, kind);
     if (err) {
       setError(err);
       return;
     }
     setError(null);
-    setMessage("Espacio familiar creado.");
+    setMessage("Espacio creado.");
     setName("");
+    setKind("Hogar");
     setCreateOpen(false);
   }
 
@@ -65,7 +105,7 @@ export default function WorkspacesPage() {
       return;
     }
     setError(null);
-    setMessage("Te uniste al espacio familiar.");
+    setMessage("Te uniste al espacio.");
     setInviteCode("");
     setJoinOpen(false);
   }
@@ -73,6 +113,7 @@ export default function WorkspacesPage() {
   function openEdit(w: Workspace) {
     setEditingId(w.id);
     setEditName(w.name);
+    setEditKind(w.kind ?? "");
     setEditAccent(w.accentColor ?? "");
     setAvatarError(null);
     setEditOpen(true);
@@ -88,6 +129,7 @@ export default function WorkspacesPage() {
     }
     const errAccent = updateWorkspace(editingId, {
       accentColor: editAccent || "",
+      ...(editing?.type === "shared" ? { kind: editKind } : {}),
     });
     if (errAccent) {
       setError(errAccent);
@@ -201,7 +243,7 @@ export default function WorkspacesPage() {
                       ) : null}
                     </p>
                     <p className="muted text-[11px]">
-                      {w.type === "personal" ? "Personal" : "Familiar"} · {members.length} miembro
+                      {workspaceKindLabel(w)} · {members.length} miembro
                       {members.length === 1 ? "" : "s"}
                     </p>
                   </span>
@@ -266,6 +308,74 @@ export default function WorkspacesPage() {
         </section>
       )}
 
+      {workspace?.type === "shared" && (
+        <section className="card space-y-3 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">Aportes de {workspace.name}</h2>
+              <p className="muted text-[11px]">Quién ha aportado y el total de cada uno.</p>
+            </div>
+            <PeriodPicker compact />
+          </div>
+          {contributionRows.length === 0 ? (
+            <p className="muted text-sm">Aún no hay integrantes en este espacio.</p>
+          ) : (
+            <>
+              <ul className="divide-y divide-border">
+                {contributionRows.map((row) => (
+                  <li key={row.userId} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{row.name}</p>
+                      <p className="muted text-[11px]">
+                        {row.count} aporte{row.count === 1 ? "" : "s"}
+                        {row.latest ? ` · último ${formatDate(row.latest.date)}` : ""}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-bold tabular-nums">
+                        {formatMoney(row.allTotal, currency)}
+                      </p>
+                      <p className="muted text-[11px] tabular-nums">
+                        {periodLabel}: {formatMoney(row.periodTotal, currency)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between border-t border-border pt-2 text-sm font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">
+                  {formatMoney(
+                    contributionRows.reduce((s, r) => s + r.allTotal, 0),
+                    currency,
+                  )}
+                </span>
+              </div>
+            </>
+          )}
+          {contributionHistory.length > 0 && (
+            <div>
+              <p className="muted mb-1 text-[11px] font-semibold uppercase tracking-wide">
+                Últimos aportes
+              </p>
+              <ul className="space-y-1">
+                {contributionHistory.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="min-w-0 truncate">
+                      {memberName(t.createdBy)}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </span>
+                    <span className="shrink-0 tabular-nums font-semibold">
+                      {formatMoney(t.amount, currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
       {error && <p className="text-xs text-danger">{error}</p>}
       {message && <p className="text-xs text-income">{message}</p>}
 
@@ -277,8 +387,29 @@ export default function WorkspacesPage() {
               className="input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Familia, Casa, Pareja"
+              placeholder="Ej: Casa, Oficina, Viaje"
               required
+            />
+          </div>
+          <div>
+            <label className="label">Tipo de espacio</label>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {SPACE_KIND_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`filter-pill ${kind === preset ? "is-active" : ""}`}
+                  onClick={() => setKind(preset)}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+            <input
+              className="input"
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+              placeholder="Hogar, Trabajo, Comisión…"
             />
           </div>
           {error && <p className="text-xs text-danger">{error}</p>}
@@ -365,6 +496,30 @@ export default function WorkspacesPage() {
               required
             />
           </div>
+
+          {editing?.type === "shared" && (
+            <div>
+              <label className="label">Tipo de espacio</label>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {SPACE_KIND_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    className={`filter-pill ${editKind === preset ? "is-active" : ""}`}
+                    onClick={() => setEditKind(preset)}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="input"
+                value={editKind}
+                onChange={(e) => setEditKind(e.target.value)}
+                placeholder="Hogar, Trabajo, Comisión…"
+              />
+            </div>
+          )}
 
           <div>
             <label className="label">Color del espacio</label>

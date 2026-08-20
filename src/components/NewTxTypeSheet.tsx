@@ -119,7 +119,7 @@ export function NewTxTypeSheet({ open, onClose, onPick }: Props) {
               </span>
               <span>
                 <span className="block text-sm font-semibold">Aporte a espacio</span>
-                <span className="muted text-xs">Alimenta un presupuesto familiar</span>
+                <span className="muted text-xs">Alimenta el presupuesto del espacio</span>
               </span>
             </button>
           </li>

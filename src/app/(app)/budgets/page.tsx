@@ -282,7 +282,7 @@ export default function BudgetsPage() {
                 Presupuesto hacia espacios
               </p>
               <p className="mt-1 text-sm">
-                Desde tu perfil personal defines o alimentas el presupuesto de un espacio familiar,
+                Desde tu perfil personal defines o alimentas el presupuesto de un espacio compartido,
                 indicando de qué cuenta sale el dinero.
               </p>
             </div>

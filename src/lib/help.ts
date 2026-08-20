@@ -8,14 +8,14 @@ export type HelpTopic = {
 const HELP_BY_PATH: Record<string, HelpTopic> = {
   "/dashboard": {
     title: "Inicio",
-    summary: "Resumen del espacio y periodo activos: saldo, gastos, consejo y actividad.",
+    summary: "Resumen del espacio y periodo activos: gastos por categoría, consejos y bolsillos.",
     steps: [
-      "Elige el espacio (personal o familiar) arriba.",
+      "Elige el espacio (personal o compartido) arriba.",
       "Ajusta el periodo: este mes, mes anterior o un rango.",
-      "Revisa el consejo destacado y entra a Consejos para ver más.",
-      "Los gráficos y la actividad usan solo el periodo seleccionado.",
+      "Toca un trozo de la gráfica o una categoría para ver esos movimientos.",
+      "Al entrar, verás recordatorios de pagos recurrentes pendientes este mes.",
     ],
-    tip: "Si dejas “Este mes”, al cambiar el mes la información se actualiza sola.",
+    tip: "El saldo total está en Cuentas. En Inicio ves ingresos y gastos del periodo.",
   },
   "/transactions": {
     title: "Movimientos",
@@ -23,9 +23,9 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Elige el periodo: este mes, mes anterior o un rango de fechas.",
       "En tu perfil personal ves movimientos personales y de espacios a los que perteneces (categoría con el nombre del espacio).",
-      "En un espacio familiar solo ves movimientos de ese espacio.",
+      "En un espacio compartido ves los movimientos de todos los miembros.",
       "En la lista ves descripción, categoría y fecha; toca un movimiento para ver el detalle.",
-      "Filtra por categoría o por cuenta para ver el flujo de una cuenta.",
+      "Filtra por categoría tocando el panel de iconos, o por cuenta para ver el flujo.",
       "Puedes indicar método de pago (efectivo, datáfono, transferencia…).",
       "Solo puedes editar o borrar los movimientos que creaste tú.",
     ],
@@ -35,7 +35,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     title: "Cuentas",
     summary: "Aquí viven tus cuentas bancarias, efectivo o billeteras del espacio activo.",
     steps: [
-      "Primero gestiona instituciones con el botón Instituciones.",
+      "Arriba ves el saldo total. Primero gestiona instituciones y luego crea cuentas.",
       "Luego crea una cuenta eligiendo institución, tipo y saldo inicial.",
       "Las cuentas se agrupan por tipo y color (ahorros, corriente, efectivo…).",
       "Toca una cuenta o el ícono de historial para ver su flujo en el periodo.",
@@ -64,13 +64,13 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
   "/budgets": {
     title: "Bolsillos y presupuesto",
     summary:
-      "Bolsillos por categoría, y Presupuesto de espacios familiares alimentado desde cuentas personales.",
+      "Bolsillos por categoría, y presupuesto de espacios compartidos alimentado desde cuentas personales.",
     steps: [
       "Bolsillos, deudas y ahorros son independientes por espacio.",
       "Desde tu perfil personal: aporta a un espacio eligiendo espacio + cuenta bancaria.",
-      "En el espacio familiar el saldo total es aportado − gastado (presupuesto del espacio).",
+      "En un espacio compartido el saldo es aportado − gastado (presupuesto del espacio).",
       "En tu perfil personal el saldo total es la suma de tus cuentas bancarias.",
-      "Desde un espacio familiar no se usan categorías de otros perfiles.",
+      "Desde un espacio compartido no se usan categorías de otros perfiles.",
     ],
   },
   "/debts": {
@@ -93,10 +93,12 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
   },
   "/workspaces": {
     title: "Espacios",
-    summary: "Separa lo personal de lo familiar y personaliza cada espacio.",
+    summary: "Separa lo personal de lo compartido, elige el tipo de espacio y revisa aportes.",
     steps: [
       "Tu espacio Personal es privado.",
-      "Crea un espacio familiar e invita con un código (7 días, un uso).",
+      "Al crear un espacio eliges el tipo: Hogar, Trabajo, Viaje u otro.",
+      "Invita con un código (7 días, un uso).",
+      "En un espacio compartido ves quién aportó y el total de cada persona.",
       "En Gestionar → lápiz: sube una imagen y elige un color propio del espacio.",
       "Al cambiar de espacio, el color y la imagen del encabezado te indican dónde estás.",
       "Solo el dueño puede eliminar un espacio compartido.",

@@ -63,6 +63,7 @@ function mapWorkspace(row: {
   created_at: string;
   avatar_url?: string | null;
   accent_color?: string | null;
+  space_kind?: string | null;
 }): Workspace {
   return {
     id: row.id,
@@ -72,6 +73,7 @@ function mapWorkspace(row: {
     createdAt: row.created_at,
     avatarData: row.avatar_url ?? undefined,
     accentColor: row.accent_color ?? undefined,
+    kind: row.space_kind ?? undefined,
   };
 }
 
@@ -553,20 +555,29 @@ export async function cloudLogout() {
 export async function cloudCreateSharedWorkspace(
   userId: string,
   name: string,
+  kind?: string,
 ): Promise<{ error: string | null; workspaceId?: string }> {
   const sb = createClient();
   if (!sb) return { error: "Supabase no configurado." };
 
   const trimmed = name.trim();
-  if (!trimmed) return { error: "Escribe un nombre para el espacio familiar." };
+  if (!trimmed) return { error: "Escribe un nombre para el espacio." };
 
   const workspaceId = newEntityId();
-  const { error: wsErr } = await sb.from("workspaces").insert({
+  const payload = {
     id: workspaceId,
     name: trimmed,
-    type: "shared",
+    type: "shared" as const,
     created_by: userId,
-  });
+    space_kind: kind?.trim() || null,
+  };
+  let { error: wsErr } = await sb.from("workspaces").insert(payload);
+  if (wsErr && /space_kind/i.test(wsErr.message)) {
+    const { space_kind: _omit, ...withoutKind } = payload;
+    void _omit;
+    const retry = await sb.from("workspaces").insert(withoutKind);
+    wsErr = retry.error;
+  }
   if (wsErr) return { error: wsErr.message };
 
   const { error: memErr } = await sb.from("workspace_members").insert({
@@ -647,12 +658,13 @@ export async function cloudUpdateProfile(
 
 export async function cloudUpdateWorkspace(
   workspaceId: string,
-  patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor">>,
+  patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor" | "kind">>,
 ) {
   const sb = createClient();
   if (!sb) return;
   const row: Record<string, string | null> = {};
   if (patch.name !== undefined) row.name = patch.name;
+  if (patch.kind !== undefined) row.space_kind = patch.kind || null;
   if (patch.avatarData !== undefined) row.avatar_url = patch.avatarData || null;
   if (patch.accentColor !== undefined) row.accent_color = patch.accentColor || null;
   if (Object.keys(row).length === 0) return;

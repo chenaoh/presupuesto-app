@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Download, Pencil, Repeat2, Search, Trash2 } from "lucide-react";
+import { CategoryIconFilter } from "@/components/CategoryIconFilter";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
@@ -82,9 +83,11 @@ export default function TransactionsPage() {
   const { range, label: periodLabelText } = usePeriod();
 
   useEffect(() => {
-    setFilterCategoryId("");
+    const params = new URLSearchParams(window.location.search);
+    const cat = params.get("category") ?? "";
+    setFilterCategoryId(cat);
     setFilterAccountId("");
-    setFilter("all");
+    setFilter(cat ? "expense" : "all");
     setDetailTx(null);
     setCategorySpaceId(workspace?.id ?? "");
   }, [workspace?.id]);
@@ -484,14 +487,14 @@ export default function TransactionsPage() {
         ))}
       </div>
 
-      <ColorCombo
+      <CategoryIconFilter
         label="Filtrar por categoría"
         value={filterCategoryId}
         onChange={setFilterCategoryId}
         placeholder="Todas las categorías"
         options={filterCategories.map((c) => ({
-          value: c.id,
-          label: itemLabel(c.workspaceId, c.name),
+          id: c.id,
+          name: itemLabel(c.workspaceId, c.name),
           color: c.color,
           icon: c.icon,
         }))}
@@ -743,13 +746,15 @@ export default function TransactionsPage() {
                   >
                     {categorySpaces.map((w) => (
                       <option key={w.id} value={w.id}>
-                        {w.type === "personal" ? `${w.name} (Personal)` : `${w.name} (Familiar)`}
+                        {w.type === "personal"
+                          ? `${w.name} (Personal)`
+                          : `${w.name} (${w.kind?.trim() || "Compartido"})`}
                       </option>
                     ))}
                   </select>
                   <p className="muted mt-1 text-[11px]">
                     Desde tu perfil personal puedes registrar gastos/ingresos en categorías de tus
-                    espacios familiares.
+                    otros espacios.
                   </p>
                 </div>
               )}
@@ -774,7 +779,7 @@ export default function TransactionsPage() {
           {type === "space_contribution" && (
             <div className="space-y-2 sm:col-span-2">
               <p className="muted text-xs">
-                Aporte al presupuesto de un espacio familiar. Sale de una cuenta de tu perfil
+                Aporte al presupuesto de un espacio compartido. Sale de una cuenta de tu perfil
                 personal.
               </p>
               {workspace?.type === "personal" && (

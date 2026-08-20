@@ -1,41 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { PeriodPicker } from "@/components/PeriodPicker";
+import { RemindersBellButton } from "@/components/RecurringReminders";
 import { UserAvatar } from "@/components/UserAvatar";
-import { formatDate, formatMoney, parseLocalDate } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 import { buildTips, filterTxs } from "@/lib/insights";
 import { rangeAnchorMonth, usePeriod } from "@/lib/period";
 import { useApp } from "@/lib/store";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const {
     workspace,
     user,
     myWorkspaces,
     setActiveWorkspace,
-    workspaceTransactions,
-    workspaceAccounts,
-    accountBalance,
     workspaceBudgets,
     spentInCategory,
     workspaceCategories,
-    itemLabel,
-    workspaceBudgetBalance,
-    workspaceBudgetFunded,
-    workspaceBudgetSpent,
-    personalAccountsTotal,
+    workspaceTransactions,
   } = useApp();
   const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod();
 
@@ -51,20 +39,12 @@ export default function DashboardPage() {
   const expenseDelta =
     prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 100) : null;
   const { year, month } = rangeAnchorMonth(range);
-  const isShared = workspace?.type === "shared";
-  const isPersonal = workspace?.type === "personal";
-  const accountsTotal = isPersonal
-    ? personalAccountsTotal()
-    : isShared
-      ? workspaceBudgetBalance(workspace?.id, year, month)
-      : workspaceAccounts().reduce((s, a) => s + accountBalance(a.id), 0);
-  const spaceFunded = isShared ? workspaceBudgetFunded(workspace?.id, year, month) : 0;
-  const spaceSpentBudget = isShared ? workspaceBudgetSpent(workspace?.id, year, month) : 0;
   const categories = workspaceCategories("expense");
   const budgets = workspaceBudgets(year, month);
 
   const byCategory = categories
     .map((c) => ({
+      id: c.id,
       name: c.name,
       value: txs
         .filter((t) => t.type === "expense" && t.categoryId === c.id)
@@ -75,11 +55,6 @@ export default function DashboardPage() {
     .sort((a, b) => b.value - a.value);
 
   const totalCat = byCategory.reduce((s, c) => s + c.value, 0) || 1;
-  const recent = [...txs]
-    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 6);
-
-  const spark = buildSparkline(range.from, range.to, txs);
   const pocketTotal = budgets.reduce((s, b) => s + b.limitAmount, 0);
 
   const tips = buildTips({
@@ -97,6 +72,10 @@ export default function DashboardPage() {
     workspaceName: workspace?.name,
   });
   const firstName = user?.displayName?.split(/\s+/)[0] || "tú";
+
+  function goToCategory(id: string) {
+    router.push(`/transactions?category=${encodeURIComponent(id)}`);
+  }
 
   const greeting = (
     <div className="flex items-start justify-between gap-3">
@@ -121,9 +100,7 @@ export default function DashboardPage() {
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <span className="hidden rounded-full border border-border p-2 muted md:grid">
-          <Bell size={16} />
-        </span>
+        <RemindersBellButton className="grid rounded-full border border-border p-2 muted hover:text-fg" />
         <Link href="/settings" className="md:hidden" aria-label="Perfil">
           <UserAvatar src={user?.avatarData} name={user?.displayName} size={44} />
         </Link>
@@ -156,67 +133,25 @@ export default function DashboardPage() {
     </div>
   );
 
-  const saldoCard = (
-    <section className="card balance-hero p-4 sm:p-5">
-      <p className="muted text-xs font-semibold uppercase tracking-wide">
-        {isShared ? "Saldo del presupuesto" : "Saldo disponible"}
-      </p>
-      <div className="mt-1 flex items-end justify-between gap-3">
-        <div>
-          <p className="text-3xl font-bold tracking-tight sm:text-4xl">
-            {formatMoney(accountsTotal, currency)}
-          </p>
-          {expenseDelta !== null && (
-            <p
-              className={`mt-1 text-xs font-semibold ${
-                expenseDelta > 0 ? "text-expense" : "text-income"
-              }`}
-            >
-              {expenseDelta > 0 ? "+" : ""}
-              {expenseDelta}% vs. periodo anterior
-            </p>
-          )}
-        </div>
-        {spark.length > 1 && (
-          <div className="h-14 w-28 shrink-0 sm:w-36">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={spark}>
-                <defs>
-                  <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="var(--accent)"
-                  fill="url(#sparkFill)"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+  const periodSummary = (
+    <section className="grid grid-cols-2 gap-2">
+      <div className="card px-3 py-2.5">
+        <p className="muted text-[11px]">Ingresos del periodo</p>
+        <p className="text-sm font-bold text-income">{formatMoney(income, currency)}</p>
       </div>
-      {isShared ? (
-        <p className="muted mt-1 text-xs">
-          Aportado {formatMoney(spaceFunded, currency)} − gastado{" "}
-          {formatMoney(spaceSpentBudget, currency)}.
-        </p>
-      ) : isPersonal ? (
-        <p className="muted mt-1 text-xs">Suma de tus cuentas bancarias del perfil personal.</p>
-      ) : null}
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className="rounded-2xl bg-[color-mix(in_oklab,var(--income)_10%,transparent)] px-3 py-2.5">
-          <p className="muted text-[11px]">Ingresos del periodo</p>
-          <p className="text-sm font-bold text-income">{formatMoney(income, currency)}</p>
-        </div>
-        <div className="rounded-2xl bg-[color-mix(in_oklab,var(--expense)_10%,transparent)] px-3 py-2.5">
-          <p className="muted text-[11px]">Gastos del periodo</p>
-          <p className="text-sm font-bold text-expense">{formatMoney(expense, currency)}</p>
-        </div>
+      <div className="card px-3 py-2.5">
+        <p className="muted text-[11px]">Gastos del periodo</p>
+        <p className="text-sm font-bold text-expense">{formatMoney(expense, currency)}</p>
+        {expenseDelta !== null && (
+          <p
+            className={`mt-0.5 text-[11px] font-semibold ${
+              expenseDelta > 0 ? "text-expense" : "text-income"
+            }`}
+          >
+            {expenseDelta > 0 ? "+" : ""}
+            {expenseDelta}% vs. periodo anterior
+          </p>
+        )}
       </div>
     </section>
   );
@@ -243,9 +178,19 @@ export default function DashboardPage() {
                   innerRadius={52}
                   outerRadius={78}
                   paddingAngle={2}
+                  cursor="pointer"
+                  onClick={(_, index) => {
+                    const item = byCategory[index];
+                    if (item) goToCategory(item.id);
+                  }}
                 >
                   {byCategory.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
+                    <Cell
+                      key={entry.id}
+                      fill={entry.color}
+                      cursor="pointer"
+                      onClick={() => goToCategory(entry.id)}
+                    />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => formatMoney(Number(value ?? 0), currency)} />
@@ -260,15 +205,33 @@ export default function DashboardPage() {
           </div>
           <ul className="space-y-2">
             {byCategory.slice(0, 6).map((c) => (
-              <li key={c.name} className="flex items-center gap-2 text-xs">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
-                <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                <span className="muted tabular-nums">{Math.round((c.value / totalCat) * 100)}%</span>
-                <span className="tabular-nums font-semibold">{formatMoney(c.value, currency)}</span>
+              <li key={c.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 text-left text-xs"
+                  onClick={() => goToCategory(c.id)}
+                >
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: c.color }}
+                  />
+                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+                  <span className="muted tabular-nums">
+                    {Math.round((c.value / totalCat) * 100)}%
+                  </span>
+                  <span className="tabular-nums font-semibold">
+                    {formatMoney(c.value, currency)}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
         </div>
+      )}
+      {byCategory.length > 0 && (
+        <p className="muted mt-3 text-[11px]">
+          Toca una categoría o un trozo del gráfico para ver sus movimientos.
+        </p>
       )}
     </section>
   );
@@ -343,59 +306,6 @@ export default function DashboardPage() {
     </section>
   );
 
-  const recentCard = (
-    <section className="card overflow-hidden p-4 sm:p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-bold">Movimientos recientes</h2>
-        <Link href="/transactions" className="text-xs font-bold text-accent">
-          Ver todo
-        </Link>
-      </div>
-      {recent.length === 0 ? (
-        <p className="muted text-sm">Sin movimientos en este periodo.</p>
-      ) : (
-        <ul className="divide-y divide-border">
-          {recent.map((t) => {
-            const cat = workspaceCategories().find((c) => c.id === t.categoryId);
-            const positive = t.type === "income" || t.type === "savings_withdrawal";
-            return (
-              <li key={t.id} className="flex min-w-0 items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                <CategoryIcon icon={cat?.icon} color={cat?.color || "var(--accent)"} size={16} />
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <p className="truncate text-sm font-semibold" title={t.note || cat?.name}>
-                    {t.note || cat?.name || itemLabel(t.workspaceId, t.type)}
-                  </p>
-                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                    {cat && (
-                      <span
-                        className="max-w-[9rem] truncate rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                        style={{
-                          background: `color-mix(in oklab, ${cat.color} 16%, var(--bg-elevated))`,
-                          color: cat.color,
-                        }}
-                      >
-                        {cat.name}
-                      </span>
-                    )}
-                    <span className="muted text-[11px]">{formatDate(t.date)}</span>
-                  </div>
-                </div>
-                <p
-                  className={`shrink-0 text-sm font-bold tabular-nums ${
-                    positive ? "text-income" : "text-expense"
-                  }`}
-                >
-                  {positive ? "+" : "-"}
-                  {formatMoney(t.amount, currency)}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-
   return (
     <div className="min-w-0 space-y-4">
       {greeting}
@@ -403,9 +313,8 @@ export default function DashboardPage() {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(16rem,1fr)]">
         <div className="min-w-0 space-y-4">
-          {saldoCard}
+          {periodSummary}
           {gastosCard}
-          {recentCard}
         </div>
         <div className="min-w-0 space-y-4">
           {insightsCard}
@@ -414,21 +323,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-}
-
-function buildSparkline(from: string, to: string, txs: { date: string; type: string; amount: number }[]) {
-  const start = parseLocalDate(from);
-  const end = parseLocalDate(to);
-  const days: Array<{ value: number }> = [];
-  const cursor = new Date(start);
-  while (cursor <= end) {
-    const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-    const value = txs
-      .filter((t) => t.date.slice(0, 10) === iso && t.type === "expense")
-      .reduce((s, t) => s + t.amount, 0);
-    days.push({ value });
-    cursor.setDate(cursor.getDate() + 1);
-    if (days.length > 62) break;
-  }
-  return days;
 }

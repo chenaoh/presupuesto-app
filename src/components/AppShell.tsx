@@ -20,6 +20,7 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { NewTxTypeSheet } from "@/components/NewTxTypeSheet";
+import { RecurringReminders } from "@/components/RecurringReminders";
 import { UserAvatar } from "@/components/UserAvatar";
 import { clsx } from "@/lib/format";
 import { useApp } from "@/lib/store";
@@ -244,6 +245,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </main>
           </div>
         </div>
+        <RecurringReminders />
 
         <div className="app-fab-desktop">
           <button
