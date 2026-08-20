@@ -12,11 +12,18 @@ export type CategoryIconOption = {
   icon?: string;
 };
 
+export type CategoryIconGroup = {
+  id: string;
+  label: string;
+  options: CategoryIconOption[];
+};
+
 type Props = {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: CategoryIconOption[];
+  groups?: CategoryIconGroup[];
   placeholder?: string;
 };
 
@@ -25,14 +32,37 @@ export function CategoryIconFilter({
   value,
   onChange,
   options,
+  groups,
   placeholder = "Todas las categorías",
 }: Props) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.id === value);
+  const showGroups = groups != null && groups.length > 0;
 
   function pick(id: string) {
     onChange(id);
     setOpen(false);
+  }
+
+  function renderOption(c: CategoryIconOption) {
+    const active = value === c.id;
+    return (
+      <button
+        key={c.id}
+        type="button"
+        className={`flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-center ${
+          active
+            ? "border-accent bg-[color-mix(in_oklab,var(--accent)_10%,transparent)]"
+            : "border-border"
+        }`}
+        onClick={() => pick(c.id)}
+      >
+        <CategoryIcon icon={c.icon} color={c.color} size={18} />
+        <span className="w-full truncate text-[11px] font-semibold leading-tight" title={c.name}>
+          {c.name}
+        </span>
+      </button>
+    );
   }
 
   return (
@@ -69,27 +99,27 @@ export function CategoryIconFilter({
             </span>
             <span className="text-[11px] font-semibold leading-tight">Todas</span>
           </button>
-          {options.map((c) => {
-            const active = value === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                className={`flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-center ${
-                  active
-                    ? "border-accent bg-[color-mix(in_oklab,var(--accent)_10%,transparent)]"
-                    : "border-border"
-                }`}
-                onClick={() => pick(c.id)}
-              >
-                <CategoryIcon icon={c.icon} color={c.color} size={18} />
-                <span className="w-full truncate text-[11px] font-semibold leading-tight" title={c.name}>
-                  {c.name}
-                </span>
-              </button>
-            );
-          })}
         </div>
+        {showGroups ? (
+          <div className="mt-3 space-y-4">
+            {groups!.map((group) => (
+              <div key={group.id}>
+                {groups!.length > 1 && (
+                  <p className="muted mb-2 text-[11px] font-semibold uppercase tracking-wide">
+                    {group.label}
+                  </p>
+                )}
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {group.options.map((c) => renderOption(c))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {options.map((c) => renderOption(c))}
+          </div>
+        )}
       </Modal>
     </div>
   );

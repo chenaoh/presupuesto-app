@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Download, Pencil, Repeat2, Search, Trash2 } from "lucide-react";
-import { CategoryIconFilter } from "@/components/CategoryIconFilter";
+import { CategoryIconFilter, type CategoryIconGroup } from "@/components/CategoryIconFilter";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
@@ -130,6 +130,22 @@ export default function TransactionsPage() {
     }
     return workspaceCategories();
   }, [workspace, myWorkspaces, categoriesFor, workspaceCategories]);
+  const filterCategoryGroups = useMemo((): CategoryIconGroup[] => {
+    const spaces =
+      workspace?.type === "personal" ? myWorkspaces : workspace ? [workspace] : [];
+    return spaces
+      .map((w) => ({
+        id: w.id,
+        label: w.type === "personal" ? "Personal" : w.name,
+        options: categoriesFor(w.id).map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+          icon: c.icon,
+        })),
+      }))
+      .filter((g) => g.options.length > 0);
+  }, [workspace, myWorkspaces, categoriesFor]);
   const memberFilters = useMemo(() => {
     if (!workspace || workspace.type !== "shared") return [];
     return data.members
@@ -563,6 +579,7 @@ export default function TransactionsPage() {
         value={filterCategoryId}
         onChange={setFilterCategoryId}
         placeholder="Todas las categorías"
+        groups={filterCategoryGroups}
         options={filterCategories.map((c) => ({
           id: c.id,
           name: itemLabel(c.workspaceId, c.name),
