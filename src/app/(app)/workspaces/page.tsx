@@ -1,15 +1,13 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
-import { Camera, Pencil, Trash2 } from "lucide-react";
+import { FormEvent, useRef, useState } from "react";
+import { Camera, Pencil, Trash2, UserMinus } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
-import { PeriodPicker } from "@/components/PeriodPicker";
 import { UserAvatar } from "@/components/UserAvatar";
 import { fileToAvatarDataUrl } from "@/lib/avatar";
 import { ACCENT_PRESETS, SPACE_KIND_PRESETS } from "@/lib/constants";
-import { clsx, formatDate, formatMoney, workspaceKindLabel } from "@/lib/format";
-import { usePeriod } from "@/lib/period";
+import { clsx, workspaceKindLabel } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import type { Workspace } from "@/lib/types";
 
@@ -24,11 +22,11 @@ export default function WorkspacesPage() {
     renameWorkspace,
     updateWorkspace,
     deleteWorkspace,
+    removeWorkspaceMember,
     data,
     memberName,
     user,
   } = useApp();
-  const { range, label: periodLabel } = usePeriod();
   const [name, setName] = useState("");
   const [kind, setKind] = useState("Hogar");
   const [inviteCode, setInviteCode] = useState("");
@@ -48,39 +46,10 @@ export default function WorkspacesPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editing = editingId ? myWorkspaces.find((w) => w.id === editingId) : null;
-  const currency = user?.currency ?? "COP";
-
-  const contributionRows = useMemo(() => {
-    if (!workspace || workspace.type !== "shared") return [];
-    const members = data.members.filter((m) => m.workspaceId === workspace.id);
-    const txs = data.transactions.filter(
-      (t) => t.workspaceId === workspace.id && t.type === "space_contribution",
-    );
-    return members
-      .map((m) => {
-        const mine = txs.filter((t) => t.createdBy === m.userId);
-        const inRange = mine.filter(
-          (t) => t.date.slice(0, 10) >= range.from && t.date.slice(0, 10) <= range.to,
-        );
-        return {
-          userId: m.userId,
-          name: memberName(m.userId),
-          count: mine.length,
-          periodTotal: inRange.reduce((s, t) => s + t.amount, 0),
-          allTotal: mine.reduce((s, t) => s + t.amount, 0),
-          latest: [...mine].sort((a, b) => b.date.localeCompare(a.date))[0],
-        };
-      })
-      .sort((a, b) => b.allTotal - a.allTotal);
-  }, [data.members, data.transactions, memberName, range.from, range.to, workspace]);
-
-  const contributionHistory = useMemo(() => {
-    if (!workspace || workspace.type !== "shared") return [];
-    return data.transactions
-      .filter((t) => t.workspaceId === workspace.id && t.type === "space_contribution")
-      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-      .slice(0, 12);
-  }, [data.transactions, workspace]);
+  const activeMembership = workspace
+    ? data.members.find((m) => m.workspaceId === workspace.id && m.userId === user?.id)
+    : undefined;
+  const isOwner = activeMembership?.role === "owner";
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -173,6 +142,17 @@ export default function WorkspacesPage() {
     else {
       setError(null);
       setMessage("Espacio eliminado.");
+    }
+  }
+
+  function onRemoveMember(userId: string, displayName: string) {
+    if (!workspace) return;
+    if (!confirm(`¿Quitar a ${displayName} del espacio ${workspace.name}?`)) return;
+    const err = removeWorkspaceMember(workspace.id, userId);
+    if (err) setError(err);
+    else {
+      setError(null);
+      setMessage(`${displayName} fue removido del espacio.`);
     }
   }
 
@@ -296,83 +276,43 @@ export default function WorkspacesPage() {
               Código: <strong className="text-accent">{generatedCode}</strong>
             </p>
           )}
-          <ul className="space-y-0.5 text-xs muted">
-            {data.members
-              .filter((m) => m.workspaceId === workspace.id)
-              .map((m) => (
-                <li key={m.id}>
-                  {memberName(m.userId)} · {m.role === "owner" ? "dueño" : "miembro"}
-                </li>
-              ))}
-          </ul>
-        </section>
-      )}
-
-      {workspace?.type === "shared" && (
-        <section className="card space-y-3 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold">Aportes de {workspace.name}</h2>
-              <p className="muted text-[11px]">Quién ha aportado y el total de cada uno.</p>
-            </div>
-            <PeriodPicker compact />
+          <div>
+            <p className="muted mb-1.5 text-[11px] font-semibold uppercase tracking-wide">
+              Miembros
+            </p>
+            <ul className="divide-y divide-border">
+              {data.members
+                .filter((m) => m.workspaceId === workspace.id)
+                .map((m) => {
+                  const name = memberName(m.userId);
+                  const canRemove =
+                    managing &&
+                    isOwner &&
+                    m.role !== "owner" &&
+                    m.userId !== user?.id;
+                  return (
+                    <li
+                      key={m.id}
+                      className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
+                    >
+                      <span className="text-xs">
+                        {name} · {m.role === "owner" ? "dueño" : "miembro"}
+                      </span>
+                      {canRemove && (
+                        <button
+                          type="button"
+                          className="rounded-md border border-red-300 bg-red-50 p-1.5 text-red-700"
+                          aria-label={`Quitar a ${name}`}
+                          onClick={() => onRemoveMember(m.userId, name)}
+                        >
+                          <UserMinus size={13} />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+            </ul>
           </div>
-          {contributionRows.length === 0 ? (
-            <p className="muted text-sm">Aún no hay integrantes en este espacio.</p>
-          ) : (
-            <>
-              <ul className="divide-y divide-border">
-                {contributionRows.map((row) => (
-                  <li key={row.userId} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{row.name}</p>
-                      <p className="muted text-[11px]">
-                        {row.count} aporte{row.count === 1 ? "" : "s"}
-                        {row.latest ? ` · último ${formatDate(row.latest.date)}` : ""}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-bold tabular-nums">
-                        {formatMoney(row.allTotal, currency)}
-                      </p>
-                      <p className="muted text-[11px] tabular-nums">
-                        {periodLabel}: {formatMoney(row.periodTotal, currency)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex items-center justify-between border-t border-border pt-2 text-sm font-semibold">
-                <span>Total</span>
-                <span className="tabular-nums">
-                  {formatMoney(
-                    contributionRows.reduce((s, r) => s + r.allTotal, 0),
-                    currency,
-                  )}
-                </span>
-              </div>
-            </>
-          )}
-          {contributionHistory.length > 0 && (
-            <div>
-              <p className="muted mb-1 text-[11px] font-semibold uppercase tracking-wide">
-                Últimos aportes
-              </p>
-              <ul className="space-y-1">
-                {contributionHistory.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="min-w-0 truncate">
-                      {memberName(t.createdBy)}
-                      {t.note ? ` · ${t.note}` : ""}
-                    </span>
-                    <span className="shrink-0 tabular-nums font-semibold">
-                      {formatMoney(t.amount, currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </section>
       )}
 

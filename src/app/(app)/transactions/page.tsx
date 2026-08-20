@@ -66,6 +66,7 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<"all" | "recurring" | TransactionType>("all");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterAccountId, setFilterAccountId] = useState("");
+  const [filterUserId, setFilterUserId] = useState("");
   const [categorySpaceId, setCategorySpaceId] = useState("");
   const [contribTargetSpaceId, setContribTargetSpaceId] = useState("");
   const [repeatId, setRepeatId] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function TransactionsPage() {
     const cat = params.get("category") ?? "";
     setFilterCategoryId(cat);
     setFilterAccountId("");
+    setFilterUserId("");
     setFilter(cat ? "expense" : "all");
     setDetailTx(null);
     setCategorySpaceId(workspace?.id ?? "");
@@ -128,7 +130,15 @@ export default function TransactionsPage() {
     }
     return workspaceCategories();
   }, [workspace, myWorkspaces, categoriesFor, workspaceCategories]);
+  const memberFilters = useMemo(() => {
+    if (!workspace || workspace.type !== "shared") return [];
+    return data.members
+      .filter((m) => m.workspaceId === workspace.id)
+      .map((m) => ({ id: m.userId, name: memberName(m.userId) }))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  }, [data.members, memberName, workspace]);
   const txs = filterTxs(workspaceTransactions(), range).filter((t) => {
+    if (filterUserId && t.createdBy !== filterUserId) return false;
     if (filterCategoryId && t.categoryId !== filterCategoryId) return false;
     if (
       filterAccountId &&
@@ -499,6 +509,31 @@ export default function TransactionsPage() {
           icon: c.icon,
         }))}
       />
+
+      {memberFilters.length > 0 && (
+        <div>
+          <p className="label">Filtrar por usuario</p>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            <FilterPill
+              active={!filterUserId}
+              color="#064E3B"
+              onClick={() => setFilterUserId("")}
+            >
+              Todos
+            </FilterPill>
+            {memberFilters.map((m) => (
+              <FilterPill
+                key={m.id}
+                active={filterUserId === m.id}
+                color="#2563EB"
+                onClick={() => setFilterUserId(m.id)}
+              >
+                {m.name}
+              </FilterPill>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ColorCombo
         label="Filtrar por cuenta (flujo)"

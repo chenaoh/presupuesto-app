@@ -25,7 +25,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
       "En tu perfil personal ves movimientos personales y de espacios a los que perteneces (categoría con el nombre del espacio).",
       "En un espacio compartido ves los movimientos de todos los miembros.",
       "En la lista ves descripción, categoría y fecha; toca un movimiento para ver el detalle.",
-      "Filtra por categoría tocando el panel de iconos, o por cuenta para ver el flujo.",
+      "Filtra por categoría tocando el panel de iconos, por cuenta o por usuario en espacios compartidos.",
       "Puedes indicar método de pago (efectivo, datáfono, transferencia…).",
       "Solo puedes editar o borrar los movimientos que creaste tú.",
     ],
@@ -94,12 +94,12 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
   },
   "/workspaces": {
     title: "Espacios",
-    summary: "Separa lo personal de lo compartido, elige el tipo de espacio y revisa aportes.",
+    summary: "Separa lo personal de lo compartido y elige el tipo de espacio.",
     steps: [
       "Tu espacio Personal es privado.",
       "Al crear un espacio eliges el tipo: Hogar, Trabajo, Viaje u otro.",
       "Invita con un código (7 días, un uso).",
-      "En un espacio compartido ves quién aportó y el total de cada persona.",
+      "En Gestionar, el dueño puede quitar miembros del espacio compartido.",
       "En Gestionar → lápiz: sube una imagen y elige un color propio del espacio.",
       "Al cambiar de espacio, el color y la imagen del encabezado te indican dónde estás.",
       "Solo el dueño puede eliminar un espacio compartido.",

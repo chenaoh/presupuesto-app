@@ -170,6 +170,7 @@ type AppContextValue = {
     patch: Partial<Pick<Workspace, "name" | "avatarData" | "accentColor" | "kind">>,
   ) => string | null;
   deleteWorkspace: (id: string) => string | null;
+  removeWorkspaceMember: (workspaceId: string, userId: string) => string | null;
   accountBalance: (accountId: string) => number;
   goalProgress: (goalId: string) => number;
   spentInCategory: (categoryId: string, year?: number, month?: number) => number;
@@ -1841,6 +1842,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [data.members, data.workspaces, persist, user],
   );
 
+  const removeWorkspaceMember = useCallback(
+    (workspaceId: string, userId: string) => {
+      if (!user) return "Sesión inválida.";
+      const ws = data.workspaces.find((w) => w.id === workspaceId);
+      if (!ws || ws.type !== "shared") return "Solo aplica a espacios compartidos.";
+      const myMembership = data.members.find(
+        (m) => m.workspaceId === workspaceId && m.userId === user.id,
+      );
+      if (!myMembership || myMembership.role !== "owner") {
+        return "Solo el dueño puede quitar miembros.";
+      }
+      const target = data.members.find(
+        (m) => m.workspaceId === workspaceId && m.userId === userId,
+      );
+      if (!target) return "Miembro no encontrado.";
+      if (target.role === "owner") return "No puedes quitar al dueño del espacio.";
+      if (target.userId === user.id) return "No puedes quitarte a ti mismo así.";
+
+      persist((prev) => ({
+        ...prev,
+        members: prev.members.filter(
+          (m) => !(m.workspaceId === workspaceId && m.userId === userId),
+        ),
+      }));
+      cloudWrite(() =>
+        createClient()!
+          .from("workspace_members")
+          .delete()
+          .eq("workspace_id", workspaceId)
+          .eq("user_id", userId),
+      );
+      return null;
+    },
+    [data.members, data.workspaces, persist, user],
+  );
+
   const accountBalance = useCallback(
     (accountId: string) => {
       const account = data.accounts.find((a) => a.id === accountId);
@@ -2018,6 +2055,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     renameWorkspace,
     updateWorkspace,
     deleteWorkspace,
+    removeWorkspaceMember,
     accountBalance,
     goalProgress,
     spentInCategory,
