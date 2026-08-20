@@ -6,7 +6,6 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { Modal } from "@/components/Modal";
 import { PeriodPicker } from "@/components/PeriodPicker";
 import { RemindersBellButton } from "@/components/RecurringReminders";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -232,28 +231,77 @@ export default function DashboardPage() {
             </p>
           </div>
           <ul className="space-y-2">
-            {byCategory.slice(0, 6).map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 text-left text-xs"
-                  onClick={() => openCategoryPreview(c.id)}
-                >
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ background: c.color }}
-                  />
-                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                  <span className="muted tabular-nums">
-                    {Math.round((c.value / totalCat) * 100)}%
-                  </span>
-                  <span className="tabular-nums font-semibold">
-                    {formatMoney(c.value, currency)}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {byCategory.slice(0, 6).map((c) => {
+              const selected = categoryPreview?.id === c.id;
+              return (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className={`flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-xs transition ${
+                      selected
+                        ? "bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] ring-1 ring-[color-mix(in_oklab,var(--accent)_25%,var(--border))]"
+                        : "hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]"
+                    }`}
+                    onClick={() => openCategoryPreview(c.id)}
+                  >
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ background: c.color }}
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+                    <span className="muted tabular-nums">
+                      {Math.round((c.value / totalCat) * 100)}%
+                    </span>
+                    <span className="tabular-nums font-semibold">
+                      {formatMoney(c.value, currency)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
+        </div>
+      )}
+      {categoryPreview && (
+        <div className="mt-3 rounded-2xl border border-border bg-[color-mix(in_oklab,var(--border)_22%,transparent)] p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <CategoryIcon
+                icon={categoryPreview.icon}
+                color={categoryPreview.color}
+                size={18}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{categoryPreview.name}</p>
+                <p className="muted text-[11px] capitalize">{label}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost shrink-0 px-2.5 py-1 text-xs"
+              onClick={() => goToCategory(categoryPreview.id)}
+            >
+              Ver
+            </button>
+          </div>
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-[color-mix(in_oklab,var(--expense)_10%,transparent)] px-2.5 py-2">
+              <p className="muted text-[10px]">Gastado</p>
+              <p className="text-xs font-bold text-expense tabular-nums">
+                {formatMoney(categoryPreview.value, currency)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-2.5 py-2">
+              <p className="muted text-[10px]">Del total</p>
+              <p className="text-xs font-bold tabular-nums">{previewPct}%</p>
+            </div>
+          </div>
+          <p className="muted mt-2 text-[11px]">
+            {previewTxCount} movimiento{previewTxCount === 1 ? "" : "s"} en este periodo.
+            {previewBudget
+              ? ` Bolsillo: ${formatMoney(spentInCategory(categoryPreview.id, year, month), currency)} / ${formatMoney(previewBudget.limitAmount, currency)}.`
+              : ""}
+          </p>
         </div>
       )}
       {byCategory.length > 0 && (
@@ -349,56 +397,6 @@ export default function DashboardPage() {
           {pocketsCard}
         </div>
       </div>
-
-      <Modal
-        open={Boolean(categoryPreview)}
-        onClose={() => setCategoryPreview(null)}
-        title={categoryPreview?.name ?? "Categoría"}
-      >
-        {categoryPreview && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <CategoryIcon
-                icon={categoryPreview.icon}
-                color={categoryPreview.color}
-                size={20}
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{categoryPreview.name}</p>
-                <p className="muted text-xs">{label}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl bg-[color-mix(in_oklab,var(--expense)_10%,transparent)] px-3 py-2.5">
-                <p className="muted text-[11px]">Gastado</p>
-                <p className="text-sm font-bold text-expense tabular-nums">
-                  {formatMoney(categoryPreview.value, currency)}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-3 py-2.5">
-                <p className="muted text-[11px]">Del total</p>
-                <p className="text-sm font-bold tabular-nums">{previewPct}%</p>
-              </div>
-            </div>
-
-            <p className="muted text-xs">
-              {previewTxCount} movimiento{previewTxCount === 1 ? "" : "s"} en este periodo.
-              {previewBudget
-                ? ` Bolsillo: ${formatMoney(spentInCategory(categoryPreview.id, year, month), currency)} / ${formatMoney(previewBudget.limitAmount, currency)}.`
-                : ""}
-            </p>
-
-            <button
-              type="button"
-              className="btn btn-primary w-full"
-              onClick={() => goToCategory(categoryPreview.id)}
-            >
-              Ver movimientos
-            </button>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }
