@@ -60,6 +60,7 @@ export default function TransactionsPage() {
   const [debtId, setDebtId] = useState("");
   const [savingsGoalId, setSavingsGoalId] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [remind, setRemind] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -193,11 +194,24 @@ export default function TransactionsPage() {
       data.categories,
     ],
   );
-  const filteredTotal = useMemo(
-    () => txs.reduce((sum, t) => sum + t.amount, 0),
-    [txs],
-  );
+  const filteredTotal = useMemo(() => {
+    const forTotal = filter === "all" ? txs.filter((t) => t.type === "expense") : txs;
+    return forTotal.reduce((sum, t) => sum + t.amount, 0);
+  }, [txs, filter]);
   const totalSummaryLabel = useMemo(() => {
+    if (filter === "all" || filter === "expense") {
+      if (filterUserId) return `Gastos de ${memberName(filterUserId)}`;
+      if (filterCategoryId) {
+        const cat = data.categories.find((c) => c.id === filterCategoryId);
+        return cat ? `Gastos en ${cat.name}` : "Total gastos";
+      }
+      if (filterAccountId) {
+        const acc = data.accounts.find((a) => a.id === filterAccountId);
+        return acc ? `Gastos en ${acc.name}` : "Total gastos";
+      }
+      if (search.trim()) return "Gastos de búsqueda";
+      return "Total gastos";
+    }
     if (filterUserId) return `Total de ${memberName(filterUserId)}`;
     if (filterCategoryId) {
       const cat = data.categories.find((c) => c.id === filterCategoryId);
@@ -207,14 +221,10 @@ export default function TransactionsPage() {
       const acc = data.accounts.find((a) => a.id === filterAccountId);
       return acc ? `Total en ${acc.name}` : "Total filtrado";
     }
-    if (filter === "expense") return "Total gastos";
     if (filter === "income") return "Total ingresos";
     if (filter === "recurring") return "Total recurrentes";
-    if (filter !== "all") {
-      return `Total ${TYPES.find((t) => t.value === filter)?.label.toLowerCase() ?? "filtrado"}`;
-    }
     if (search.trim()) return "Total de búsqueda";
-    return "Total movimientos";
+    return `Total ${TYPES.find((t) => t.value === filter)?.label.toLowerCase() ?? "filtrado"}`;
   }, [
     filterUserId,
     filterCategoryId,
@@ -226,7 +236,7 @@ export default function TransactionsPage() {
     memberName,
   ]);
   const totalColorClass =
-    filter === "expense" || filter === "debt_payment"
+    filter === "all" || filter === "expense" || filter === "debt_payment"
       ? "text-expense"
       : filter === "income" || filter === "savings_withdrawal"
         ? "text-income"
@@ -252,6 +262,7 @@ export default function TransactionsPage() {
     setDebtId("");
     setSavingsGoalId("");
     setRecurring(false);
+    setRemind(false);
     setPaymentMethod("");
     setEditingId(null);
     setError(null);
@@ -290,6 +301,7 @@ export default function TransactionsPage() {
     setDebtId(tx.debtId ?? "");
     setSavingsGoalId(tx.savingsGoalId ?? "");
     setRecurring(Boolean(tx.recurring));
+    setRemind(Boolean(tx.recurring) && Boolean(tx.remind));
     setPaymentMethod(tx.paymentMethod ?? "");
     setError(null);
     setFormOpen(true);
@@ -329,6 +341,7 @@ export default function TransactionsPage() {
       savingsGoalId: savingsGoalId || undefined,
       targetWorkspaceId,
       recurring,
+      remind: recurring && remind,
       paymentMethod: paymentMethod || undefined,
     };
 
@@ -761,6 +774,10 @@ export default function TransactionsPage() {
                 />
               )}
               <DetailRow label="Recurrente" value={detailTx.recurring ? "Sí" : "No"} />
+              <DetailRow
+                label="Recordatorio"
+                value={detailTx.recurring && detailTx.remind ? "Sí" : "No"}
+              />
               <DetailRow label="Espacio" value={workspaceLabel(detailTx.workspaceId)} />
               <DetailRow label="Registrado por" value={memberName(detailTx.createdBy)} />
             </dl>
@@ -1022,9 +1039,27 @@ export default function TransactionsPage() {
           )}
 
           <label className="flex items-center gap-2 text-xs font-medium sm:col-span-2">
-            <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setRecurring(next);
+                if (!next) setRemind(false);
+              }}
+            />
             Marcar como recurrente (arriendo, suscripciones, etc.)
           </label>
+          {recurring && (
+            <label className="flex items-center gap-2 text-xs font-medium sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={remind}
+                onChange={(e) => setRemind(e.target.checked)}
+              />
+              Recordarme este mes si aún no lo registro
+            </label>
+          )}
           {error && <p className="text-xs text-danger sm:col-span-2">{error}</p>}
           <div className="sm:col-span-2">
             <button className="btn btn-primary w-full">{editingId ? "Guardar cambios" : "Guardar"}</button>

@@ -80,6 +80,7 @@ type CreateTransactionInput = {
   /** Espacio al que corresponde el movimiento (personal o familiar). */
   targetWorkspaceId?: string;
   recurring?: boolean;
+  remind?: boolean;
   paymentMethod?: PaymentMethod;
 };
 
@@ -1074,6 +1075,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         debtId: input.debtId,
         savingsGoalId: input.savingsGoalId,
         recurring: Boolean(input.recurring),
+        remind: Boolean(input.recurring) && Boolean(input.remind),
         paymentMethod: input.paymentMethod,
         createdBy: user.id,
         createdAt: new Date().toISOString(),
@@ -1109,6 +1111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           debt_id: tx.debtId ?? null,
           savings_goal_id: tx.savingsGoalId ?? null,
           recurring: Boolean(tx.recurring),
+          remind: Boolean(tx.remind),
           payment_method: tx.paymentMethod ?? null,
           created_by: tx.createdBy,
           created_at: tx.createdAt,
@@ -1211,6 +1214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         debtId: input.debtId,
         savingsGoalId: input.savingsGoalId,
         recurring: Boolean(input.recurring),
+        remind: Boolean(input.recurring) && Boolean(input.remind),
         paymentMethod: input.paymentMethod,
       };
 
@@ -1251,6 +1255,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             debt_id: next.debtId ?? null,
             savings_goal_id: next.savingsGoalId ?? null,
             recurring: Boolean(next.recurring),
+            remind: Boolean(next.remind),
             payment_method: next.paymentMethod ?? null,
           })
           .eq("id", id),
@@ -1306,11 +1311,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       persist((prev) => ({
         ...prev,
         transactions: prev.transactions.map((t) =>
-          t.id === id ? { ...t, recurring } : t,
+          t.id === id
+            ? { ...t, recurring, remind: recurring ? Boolean(t.remind) : false }
+            : t,
         ),
       }));
       cloudWrite(() =>
-        createClient()!.from("transactions").update({ recurring }).eq("id", id),
+        createClient()!
+          .from("transactions")
+          .update(recurring ? { recurring: true } : { recurring: false, remind: false })
+          .eq("id", id),
       );
     },
     [persist],
@@ -1337,6 +1347,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         savingsGoalId: original.savingsGoalId,
         targetWorkspaceId: original.workspaceId,
         recurring: original.recurring ?? true,
+        remind: Boolean(original.recurring) && Boolean(original.remind),
         paymentMethod: original.paymentMethod,
       });
     },

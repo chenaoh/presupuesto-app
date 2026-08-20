@@ -264,6 +264,7 @@ function mapTx(row: {
   debt_id: string | null;
   savings_goal_id: string | null;
   recurring?: boolean | null;
+  remind?: boolean | null;
   payment_method?: string | null;
   created_by: string;
   created_at: string;
@@ -281,6 +282,7 @@ function mapTx(row: {
     debtId: row.debt_id ?? undefined,
     savingsGoalId: row.savings_goal_id ?? undefined,
     recurring: Boolean(row.recurring),
+    remind: Boolean(row.remind),
     paymentMethod: (row.payment_method as Transaction["paymentMethod"]) || undefined,
     createdBy: row.created_by,
     createdAt: row.created_at,

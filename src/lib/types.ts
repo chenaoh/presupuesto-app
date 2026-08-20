@@ -157,6 +157,8 @@ export interface Transaction {
   savingsGoalId?: string;
   /** Si es true, aparece fácil de repetir (arriendo, Netflix, etc.). */
   recurring?: boolean;
+  /** Si es true (y es recurrente), avisa si aún no se registró este mes. */
+  remind?: boolean;
   /** Cómo se pagó (opcional). */
   paymentMethod?: PaymentMethod;
   createdBy: string;

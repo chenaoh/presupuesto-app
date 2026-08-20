@@ -108,12 +108,12 @@ export function RecurringReminders() {
     >
       {remaining.length === 0 ? (
         <p className="muted text-sm">
-          No hay movimientos recurrentes pendientes de repetir este mes.
+          No hay recordatorios pendientes este mes.
         </p>
       ) : (
         <div className="space-y-3">
           <p className="muted text-sm">
-            Marcaste estos movimientos como recurrentes y aún no hay uno en este mes.
+            Marcaste estos movimientos para recordarte y aún no hay uno en este mes.
           </p>
           <ul className="space-y-2">
             {remaining.map((item) => (

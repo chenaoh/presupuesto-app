@@ -66,7 +66,7 @@ export function dueRecurringThisMonth(
   now = new Date(),
 ): RecurringDue[] {
   const { year, month } = currentPeriod(now);
-  const mine = txs.filter((t) => t.createdBy === userId && t.recurring);
+  const mine = txs.filter((t) => t.createdBy === userId && t.recurring && t.remind);
   const latest = new Map<string, Transaction>();
   for (const t of mine) {
     const key = recurringTemplateKey(t);
