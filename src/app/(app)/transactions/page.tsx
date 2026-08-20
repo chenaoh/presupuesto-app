@@ -137,33 +137,84 @@ export default function TransactionsPage() {
       .map((m) => ({ id: m.userId, name: memberName(m.userId) }))
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
   }, [data.members, memberName, workspace]);
-  const txs = filterTxs(workspaceTransactions(), range).filter((t) => {
-    if (filterUserId && t.createdBy !== filterUserId) return false;
-    if (filterCategoryId && t.categoryId !== filterCategoryId) return false;
-    if (
-      filterAccountId &&
-      t.accountId !== filterAccountId &&
-      t.toAccountId !== filterAccountId
-    ) {
-      return false;
+  const txs = useMemo(
+    () =>
+      filterTxs(workspaceTransactions(), range).filter((t) => {
+        if (filterUserId && t.createdBy !== filterUserId) return false;
+        if (filterCategoryId && t.categoryId !== filterCategoryId) return false;
+        if (
+          filterAccountId &&
+          t.accountId !== filterAccountId &&
+          t.toAccountId !== filterAccountId
+        ) {
+          return false;
+        }
+        if (filter === "all") {
+          /* keep */
+        } else if (filter === "recurring") {
+          if (!t.recurring) return false;
+        } else if (t.type !== filter) {
+          return false;
+        }
+        if (search.trim()) {
+          const q = search.trim().toLowerCase();
+          const cat = t.categoryId
+            ? data.categories.find((c) => c.id === t.categoryId)?.name ?? ""
+            : "";
+          const hay = `${t.note} ${cat} ${t.amount} ${t.type}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      }),
+    [
+      workspaceTransactions,
+      range,
+      filterUserId,
+      filterCategoryId,
+      filterAccountId,
+      filter,
+      search,
+      data.categories,
+    ],
+  );
+  const filteredTotal = useMemo(
+    () => txs.reduce((sum, t) => sum + t.amount, 0),
+    [txs],
+  );
+  const totalSummaryLabel = useMemo(() => {
+    if (filterUserId) return `Total de ${memberName(filterUserId)}`;
+    if (filterCategoryId) {
+      const cat = data.categories.find((c) => c.id === filterCategoryId);
+      return cat ? `Total en ${cat.name}` : "Total filtrado";
     }
-    if (filter === "all") {
-      /* keep */
-    } else if (filter === "recurring") {
-      if (!t.recurring) return false;
-    } else if (t.type !== filter) {
-      return false;
+    if (filterAccountId) {
+      const acc = data.accounts.find((a) => a.id === filterAccountId);
+      return acc ? `Total en ${acc.name}` : "Total filtrado";
     }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      const cat = t.categoryId
-        ? data.categories.find((c) => c.id === t.categoryId)?.name ?? ""
-        : "";
-      const hay = `${t.note} ${cat} ${t.amount} ${t.type}`.toLowerCase();
-      if (!hay.includes(q)) return false;
+    if (filter === "expense") return "Total gastos";
+    if (filter === "income") return "Total ingresos";
+    if (filter === "recurring") return "Total recurrentes";
+    if (filter !== "all") {
+      return `Total ${TYPES.find((t) => t.value === filter)?.label.toLowerCase() ?? "filtrado"}`;
     }
-    return true;
-  });
+    if (search.trim()) return "Total de búsqueda";
+    return "Total movimientos";
+  }, [
+    filterUserId,
+    filterCategoryId,
+    filterAccountId,
+    filter,
+    search,
+    data.categories,
+    data.accounts,
+    memberName,
+  ]);
+  const totalColorClass =
+    filter === "expense" || filter === "debt_payment"
+      ? "text-expense"
+      : filter === "income" || filter === "savings_withdrawal"
+        ? "text-income"
+        : "text-fg";
   const groupedTxs = useMemo(() => {
     const map = new Map<string, Transaction[]>();
     for (const tx of txs) {
@@ -429,6 +480,16 @@ export default function TransactionsPage() {
         <PeriodPicker compact />
         <p className="muted text-[11px] capitalize">{periodLabelText}</p>
       </div>
+
+      <section className="card balance-hero p-4 sm:p-5">
+        <p className="muted text-[11px]">{totalSummaryLabel}</p>
+        <p className={`text-2xl font-bold tabular-nums sm:text-3xl ${totalColorClass}`}>
+          {formatMoney(filteredTotal, currency)}
+        </p>
+        <p className="muted mt-1 text-xs">
+          {txs.length} movimiento{txs.length === 1 ? "" : "s"} en el periodo
+        </p>
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-primary text-sm" onClick={() => openCreate()}>

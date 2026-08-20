@@ -25,7 +25,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
       "En tu perfil personal ves movimientos personales y de espacios a los que perteneces (categoría con el nombre del espacio).",
       "En un espacio compartido ves los movimientos de todos los miembros.",
       "En la lista ves descripción, categoría y fecha; toca un movimiento para ver el detalle.",
-      "Filtra por categoría tocando el panel de iconos, por cuenta o por usuario en espacios compartidos.",
+      "Arriba ves el total de los movimientos del periodo; se actualiza al filtrar por tipo, categoría, cuenta o usuario.",
       "Puedes indicar método de pago (efectivo, datáfono, transferencia…).",
       "Solo puedes editar o borrar los movimientos que creaste tú.",
     ],
