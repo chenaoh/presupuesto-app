@@ -6,7 +6,8 @@
     "dev": "next dev -H 0.0.0.0 -p 3015",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3015",
-    "lint": "eslint"
+    "lint": "eslint",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
