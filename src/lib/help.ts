@@ -12,7 +12,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Elige el espacio (personal o compartido) arriba.",
       "Ajusta el periodo: este mes, mes anterior o un rango.",
-      "Toca un trozo de la gráfica o una categoría para ver esos movimientos.",
+      "Toca un trozo de la gráfica o una categoría para ver el detalle y luego ir a movimientos.",
       "Al entrar, verás recordatorios de pagos recurrentes pendientes este mes.",
     ],
     tip: "El saldo total está en Cuentas. En Inicio ves ingresos y gastos del periodo.",
@@ -58,6 +58,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Hay categorías base del sistema; puedes agregar las tuyas.",
       "Usa Gestionar para editar, archivar o eliminar (si no tienen movimientos).",
+      "Al crear o editar, elige un icono (incluye bicicleta, moto, mercado, salud, etc.).",
       "Los colores ayudan a reconocerlas en listas y gráficos.",
     ],
   },

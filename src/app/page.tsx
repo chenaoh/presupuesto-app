@@ -45,7 +45,7 @@ export default function HomePage() {
             alt="Presupuesto"
             width={40}
             height={40}
-            className="landing-logo-mark rounded-xl bg-white object-contain"
+            className="landing-logo-mark rounded-xl object-contain"
             priority
           />
           <p className="brand landing-brand">Presupuesto</p>

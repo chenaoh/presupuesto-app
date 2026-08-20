@@ -15,7 +15,7 @@ export function BrandMark({ size = 40, className, priority }: Props) {
       width={size}
       height={size}
       priority={priority}
-      className={clsx("rounded-2xl bg-white object-contain", className)}
+      className={clsx("rounded-2xl object-contain", className)}
       style={{ width: size, height: size }}
     />
   );
