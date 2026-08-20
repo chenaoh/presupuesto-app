@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { PeriodPicker } from "@/components/PeriodPicker";
 import { RemindersBellButton } from "@/components/RecurringReminders";
@@ -35,24 +35,28 @@ export default function DashboardPage() {
     workspaceTransactions,
   } = useApp();
   const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod();
-  const [categoryPreview, setCategoryPreview] = useState<CategorySlice | null>(null);
-  const gastosPreviewRef = useRef<HTMLDivElement>(null);
+  const [previewCategoryId, setPreviewCategoryId] = useState<string | null>(null);
+  const gastosCardRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setCategoryPreview(null);
+    setPreviewCategoryId(null);
   }, [workspace?.id, range.from, range.to]);
 
   useEffect(() => {
-    if (!categoryPreview) return;
-    function onPointerDown(event: PointerEvent) {
-      const root = gastosPreviewRef.current;
-      if (root && !root.contains(event.target as Node)) {
-        setCategoryPreview(null);
+    if (!previewCategoryId) return;
+    function onDismiss(event: Event) {
+      const card = gastosCardRef.current;
+      if (card && !card.contains(event.target as Node)) {
+        setPreviewCategoryId(null);
       }
     }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [categoryPreview]);
+    document.addEventListener("click", onDismiss, true);
+    document.addEventListener("touchend", onDismiss, true);
+    return () => {
+      document.removeEventListener("click", onDismiss, true);
+      document.removeEventListener("touchend", onDismiss, true);
+    };
+  }, [previewCategoryId]);
 
   const currency = user?.currency ?? "COP";
   const allWsTxs = workspaceTransactions();
@@ -101,25 +105,35 @@ export default function DashboardPage() {
   });
   const firstName = user?.displayName?.split(/\s+/)[0] || "tú";
 
+  const categoryPreview =
+    previewCategoryId != null
+      ? (byCategory.find((c) => c.id === previewCategoryId) ?? null)
+      : null;
+
   function openCategoryPreview(id: string) {
-    const item = byCategory.find((c) => c.id === id);
-    if (item) setCategoryPreview(item);
+    setPreviewCategoryId(id);
+  }
+
+  function dismissCategoryPreview() {
+    setPreviewCategoryId(null);
+  }
+
+  function onGastosCardClick(event: React.MouseEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest("[data-category-trigger]") ||
+      target.closest("[data-category-preview]") ||
+      target.closest(".recharts-pie-sector")
+    ) {
+      return;
+    }
+    dismissCategoryPreview();
   }
 
   function goToCategory(id: string) {
-    setCategoryPreview(null);
+    setPreviewCategoryId(null);
     router.push(`/transactions?category=${encodeURIComponent(id)}`);
   }
-
-  const previewTxCount = categoryPreview
-    ? txs.filter((t) => t.type === "expense" && t.categoryId === categoryPreview.id).length
-    : 0;
-  const previewPct = categoryPreview
-    ? Math.round((categoryPreview.value / totalCat) * 100)
-    : 0;
-  const previewBudget = categoryPreview
-    ? budgets.find((b) => b.categoryId === categoryPreview.id)
-    : undefined;
 
   const greeting = (
     <div className="flex items-start justify-between gap-3">
@@ -201,7 +215,11 @@ export default function DashboardPage() {
   );
 
   const gastosCard = (
-    <section className="card p-4 sm:p-5">
+    <section
+      ref={gastosCardRef}
+      className="card p-4 sm:p-5"
+      onClick={onGastosCardClick}
+    >
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-bold">Gastos del mes</h2>
         <Link href="/transactions" className="text-xs font-bold text-accent">
@@ -211,9 +229,31 @@ export default function DashboardPage() {
       {byCategory.length === 0 ? (
         <p className="muted text-sm">Aún no hay gastos en este periodo.</p>
       ) : (
-        <div ref={gastosPreviewRef}>
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
           <div className="relative mx-auto h-44 w-full max-w-[200px]">
+            {categoryPreview && (
+              <div
+                data-category-preview=""
+                className="absolute inset-x-0 top-0 z-10 mx-auto w-max max-w-[calc(100%-0.5rem)] rounded-md border border-border bg-bg-elevated px-2.5 py-1.5 text-xs shadow-sm"
+              >
+                <p className="whitespace-nowrap">
+                  <span className="font-semibold" style={{ color: categoryPreview.color }}>
+                    {categoryPreview.name}
+                  </span>
+                  <span className="muted"> : </span>
+                  <span className="font-bold tabular-nums">
+                    {formatMoney(categoryPreview.value, currency)}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  className="mt-1 font-bold text-accent"
+                  onClick={() => goToCategory(categoryPreview.id)}
+                >
+                  Ver
+                </button>
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -234,11 +274,11 @@ export default function DashboardPage() {
                       key={entry.id}
                       fill={entry.color}
                       cursor="pointer"
+                      data-category-trigger=""
                       onClick={() => openCategoryPreview(entry.id)}
                     />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatMoney(Number(value ?? 0), currency)} />
               </PieChart>
             </ResponsiveContainer>
             <p className="pointer-events-none absolute inset-0 grid place-content-center text-center">
@@ -250,11 +290,12 @@ export default function DashboardPage() {
           </div>
           <ul className="space-y-2">
             {byCategory.slice(0, 6).map((c) => {
-              const selected = categoryPreview?.id === c.id;
+              const selected = previewCategoryId === c.id;
               return (
                 <li key={c.id}>
                   <button
                     type="button"
+                    data-category-trigger=""
                     className={`flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-xs transition ${
                       selected
                         ? "bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] ring-1 ring-[color-mix(in_oklab,var(--accent)_25%,var(--border))]"
@@ -278,54 +319,11 @@ export default function DashboardPage() {
               );
             })}
           </ul>
-          </div>
-          {categoryPreview && (
-            <div className="mt-3 rounded-2xl border border-border bg-[color-mix(in_oklab,var(--border)_22%,transparent)] p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <CategoryIcon
-                    icon={categoryPreview.icon}
-                    color={categoryPreview.color}
-                    size={18}
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{categoryPreview.name}</p>
-                    <p className="muted text-[11px] capitalize">{label}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-ghost shrink-0 px-2.5 py-1 text-xs"
-                  onClick={() => goToCategory(categoryPreview.id)}
-                >
-                  Ver
-                </button>
-              </div>
-              <div className="mt-2.5 grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-[color-mix(in_oklab,var(--expense)_10%,transparent)] px-2.5 py-2">
-                  <p className="muted text-[10px]">Gastado</p>
-                  <p className="text-xs font-bold text-expense tabular-nums">
-                    {formatMoney(categoryPreview.value, currency)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-2.5 py-2">
-                  <p className="muted text-[10px]">Del total</p>
-                  <p className="text-xs font-bold tabular-nums">{previewPct}%</p>
-                </div>
-              </div>
-              <p className="muted mt-2 text-[11px]">
-                {previewTxCount} movimiento{previewTxCount === 1 ? "" : "s"} en este periodo.
-                {previewBudget
-                  ? ` Bolsillo: ${formatMoney(spentInCategory(categoryPreview.id, year, month), currency)} / ${formatMoney(previewBudget.limitAmount, currency)}.`
-                  : ""}
-              </p>
-            </div>
-          )}
         </div>
       )}
       {byCategory.length > 0 && (
         <p className="muted mt-3 text-[11px]">
-          Toca una categoría o un trozo del gráfico para ver el detalle.
+          Toca una categoría o un trozo del gráfico para ver el detalle. Toca fuera para cerrar.
         </p>
       )}
     </section>

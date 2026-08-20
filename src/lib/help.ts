@@ -12,7 +12,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Elige el espacio (personal o compartido) arriba.",
       "Ajusta el periodo: este mes, mes anterior o un rango.",
-      "Toca un trozo de la gráfica o una categoría para ver el detalle; el panel se cierra al tocar fuera.",
+      "Toca una categoría o un trozo del gráfico para ver el detalle flotante; pulsa Ver o toca fuera para cerrar.",
       "Al entrar, verás recordatorios de pagos recurrentes pendientes este mes.",
     ],
     tip: "El saldo total está en Cuentas. En Inicio ves ingresos y gastos del periodo.",
