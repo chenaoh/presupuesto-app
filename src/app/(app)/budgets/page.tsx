@@ -6,6 +6,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NumericInput } from "@/components/NumericInput";
 import { accountColor } from "@/lib/colors";
 import { currentPeriod, formatMoney, monthLabel, todayIso } from "@/lib/format";
 import { useApp } from "@/lib/store";
@@ -627,10 +628,7 @@ export default function BudgetsPage() {
           />
           <div>
             <label className="label">Límite mensual</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={limitAmount}
               onChange={(e) => setLimitAmount(e.target.value)}
               placeholder="Tope a gastar en el mes (ej: 400000)"
@@ -679,10 +677,7 @@ export default function BudgetsPage() {
           )}
           <div>
             <label className="label">Tope del mes</label>
-            <input
-              className="input"
-              type="number"
-              min="0"
+            <NumericInput
               value={spaceLimit}
               onChange={(e) => setSpaceLimit(e.target.value)}
               placeholder="Ej: 2000000"
@@ -746,10 +741,7 @@ export default function BudgetsPage() {
           </div>
           <div>
             <label className="label">Monto</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={contribAmount}
               onChange={(e) => setContribAmount(e.target.value)}
               placeholder="Ej: 300000"

@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Building2, Pencil, Trash2, Archive, History } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NumericInput } from "@/components/NumericInput";
 import { PeriodPicker } from "@/components/PeriodPicker";
 import { ACCOUNT_TYPE_LABELS } from "@/lib/constants";
 import { accountColor } from "@/lib/colors";
@@ -420,9 +421,7 @@ export default function AccountsPage() {
           </div>
           <div>
             <label className="label">Saldo inicial</label>
-            <input
-              className="input"
-              type="number"
+            <NumericInput
               value={initialBalance}
               onChange={(e) => setInitialBalance(e.target.value)}
               placeholder="Saldo actual al crear la cuenta (ej: 350000)"

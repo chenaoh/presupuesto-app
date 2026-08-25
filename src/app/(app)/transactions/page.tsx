@@ -6,6 +6,7 @@ import { CategoryIconFilter, type CategoryIconGroup } from "@/components/Categor
 import { ColorCombo } from "@/components/ColorCombo";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NumericInput } from "@/components/NumericInput";
 import { PeriodPicker } from "@/components/PeriodPicker";
 import { accountColor, TYPE_COLORS } from "@/lib/colors";
 import { downloadCsv } from "@/lib/csv";
@@ -837,10 +838,7 @@ export default function TransactionsPage() {
           </div>
           <div>
             <label className="label">Monto</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Valor del movimiento (ej: 85000)"
@@ -1089,12 +1087,7 @@ export default function TransactionsPage() {
           </div>
           <div>
             <label className="label">Monto</label>
-            <input
-              className="input"
-              type="number"
-              min="0"
-              step="any"
-              inputMode="decimal"
+            <NumericInput
               value={repeatAmount}
               onChange={(e) => setRepeatAmount(e.target.value)}
               placeholder="Ej: 150000"

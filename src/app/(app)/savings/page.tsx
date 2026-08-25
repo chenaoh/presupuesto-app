@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NumericInput } from "@/components/NumericInput";
 import { formatMoney } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import { useRequireAccounts } from "@/lib/useRequireAccounts";
@@ -221,10 +222,7 @@ export default function SavingsPage() {
           </div>
           <div>
             <label className="label">Valor del objetivo</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
               placeholder="Cantidad que quieres ahorrar (ej: 2000000)"
@@ -281,10 +279,7 @@ export default function SavingsPage() {
           </div>
           <div>
             <label className="label">Monto</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Valor a aportar o retirar"

@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
+import { NumericInput } from "@/components/NumericInput";
 import { formatMoney } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import { useRequireAccounts } from "@/lib/useRequireAccounts";
@@ -219,10 +220,7 @@ export default function DebtsPage() {
           </div>
           <div>
             <label className="label">{editing ? "Saldo restante" : "Monto principal"}</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={principal}
               onChange={(e) => setPrincipal(e.target.value)}
               placeholder={editing ? "Cuánto falta por pagar" : "Valor total de la deuda"}
@@ -264,10 +262,7 @@ export default function DebtsPage() {
           </div>
           <div>
             <label className="label">Monto del pago</label>
-            <input
-              className="input"
-              type="number"
-              min="1"
+            <NumericInput
               value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)}
               placeholder="Cuánto vas a abonar"
