@@ -643,11 +643,22 @@ export default function TransactionsPage() {
         <p className="muted text-sm">Sin movimientos en este periodo con los filtros actuales.</p>
       ) : null}
       <div className="space-y-4">
-        {groupedTxs.map(([day, dayTxs]) => (
+        {groupedTxs.map(([day, dayTxs]) => {
+          const dayExpenseTotal = dayTxs
+            .filter((t) => t.type === "expense")
+            .reduce((sum, t) => sum + t.amount, 0);
+          return (
           <div key={day}>
-            <p className="muted mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wide">
-              {formatDate(day)}
-            </p>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2 px-0.5">
+              <p className="muted text-[11px] font-semibold uppercase tracking-wide">
+                {formatDate(day)}
+              </p>
+              {dayExpenseTotal > 0 && (
+                <p className="text-[11px] font-semibold tabular-nums text-expense">
+                  {formatMoney(dayExpenseTotal, currency)}
+                </p>
+              )}
+            </div>
             <ul className="card divide-y divide-border overflow-hidden">
               {dayTxs.map((tx) => {
                 const positive = tx.type === "income" || tx.type === "savings_withdrawal";
@@ -729,7 +740,8 @@ export default function TransactionsPage() {
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <Modal
