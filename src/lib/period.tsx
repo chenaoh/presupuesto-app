@@ -112,6 +112,61 @@ export function rangeAnchorMonth(range: DateRange) {
   return { year: y, month: m };
 }
 
+export type ChartSpan = "week" | "month" | "year";
+
+function startOfWeekMonday(d: Date) {
+  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  return copy;
+}
+
+export function chartRangeFor(span: ChartSpan, anchor: Date): DateRange {
+  const y = anchor.getFullYear();
+  const m = anchor.getMonth() + 1;
+  if (span === "year") {
+    return { from: `${y}-01-01`, to: `${y}-12-31` };
+  }
+  if (span === "month") {
+    return { from: startOfMonth(y, m), to: endOfMonth(y, m) };
+  }
+  const start = startOfWeekMonday(anchor);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { from: toIso(start), to: toIso(end) };
+}
+
+export function shiftChartAnchor(span: ChartSpan, anchor: Date, delta: number) {
+  const next = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  if (span === "year") next.setFullYear(next.getFullYear() + delta);
+  else if (span === "month") next.setMonth(next.getMonth() + delta);
+  else next.setDate(next.getDate() + delta * 7);
+  return next;
+}
+
+export function chartSpanTitle(span: ChartSpan) {
+  if (span === "week") return "Gastos de la semana";
+  if (span === "year") return "Gastos del año";
+  return "Gastos del mes";
+}
+
+export function chartRangeCaption(span: ChartSpan, range: DateRange, locale = "es-CO") {
+  const from = new Date(`${range.from}T12:00:00`);
+  const to = new Date(`${range.to}T12:00:00`);
+  if (span === "year") return String(from.getFullYear());
+  if (span === "month") {
+    return monthLabel(from.getFullYear(), from.getMonth() + 1, locale);
+  }
+  const fromText = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(from);
+  const toText = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(to);
+  return `${fromText} – ${toText}`;
+}
+
 export function PeriodProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<PeriodMode>("current");
   const [customFrom, setCustomFrom] = useState("");

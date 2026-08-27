@@ -11,7 +11,15 @@ import { RemindersBellButton } from "@/components/RecurringReminders";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatMoney } from "@/lib/format";
 import { buildTips, filterTxs } from "@/lib/insights";
-import { rangeAnchorMonth, usePeriod } from "@/lib/period";
+import {
+  chartRangeCaption,
+  chartRangeFor,
+  chartSpanTitle,
+  rangeAnchorMonth,
+  shiftChartAnchor,
+  usePeriod,
+  type ChartSpan,
+} from "@/lib/period";
 import { useApp } from "@/lib/store";
 
 type CategorySlice = {
@@ -21,6 +29,17 @@ type CategorySlice = {
   color: string;
   icon?: string;
 };
+
+const CHART_SPANS: Array<{ value: ChartSpan; label: string }> = [
+  { value: "week", label: "Semana" },
+  { value: "month", label: "Mes" },
+  { value: "year", label: "Año" },
+];
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: i,
+  label: new Intl.DateTimeFormat("es-CO", { month: "long" }).format(new Date(2020, i, 1)),
+}));
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -36,11 +55,15 @@ export default function DashboardPage() {
   } = useApp();
   const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod();
   const [previewCategoryId, setPreviewCategoryId] = useState<string | null>(null);
+  const [chartSpan, setChartSpan] = useState<ChartSpan>("month");
+  const [chartAnchor, setChartAnchor] = useState(() => new Date());
   const gastosCardRef = useRef<HTMLElement>(null);
+
+  const chartRange = chartRangeFor(chartSpan, chartAnchor);
 
   useEffect(() => {
     setPreviewCategoryId(null);
-  }, [workspace?.id, range.from, range.to]);
+  }, [workspace?.id, range.from, range.to, chartRange.from, chartRange.to]);
 
   useEffect(() => {
     if (!previewCategoryId) return;
@@ -61,9 +84,13 @@ export default function DashboardPage() {
   const currency = user?.currency ?? "COP";
   const allWsTxs = workspaceTransactions();
   const txs = filterTxs(allWsTxs, range);
+  const chartTxs = filterTxs(allWsTxs, chartRange);
   const compareTxs = filterTxs(allWsTxs, compareRange);
   const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const chartExpense = chartTxs
+    .filter((t) => t.type === "expense")
+    .reduce((s, t) => s + t.amount, 0);
   const prevExpense = compareTxs
     .filter((t) => t.type === "expense")
     .reduce((s, t) => s + t.amount, 0);
@@ -77,7 +104,7 @@ export default function DashboardPage() {
     .map((c) => ({
       id: c.id,
       name: c.name,
-      value: txs
+      value: chartTxs
         .filter((t) => t.type === "expense" && t.categoryId === c.id)
         .reduce((s, t) => s + t.amount, 0),
       color: c.color,
@@ -104,6 +131,15 @@ export default function DashboardPage() {
     workspaceName: workspace?.name,
   });
   const firstName = user?.displayName?.split(/\s+/)[0] || "tú";
+  const chartYears = (() => {
+    const nowY = new Date().getFullYear();
+    const years = new Set<number>([nowY, chartAnchor.getFullYear()]);
+    for (const t of allWsTxs) {
+      const y = Number(t.date.slice(0, 4));
+      if (Number.isFinite(y) && y >= 2000) years.add(y);
+    }
+    return [...years].sort((a, b) => b - a);
+  })();
 
   const categoryPreview =
     previewCategoryId != null
@@ -123,6 +159,7 @@ export default function DashboardPage() {
     if (
       target.closest("[data-category-trigger]") ||
       target.closest("[data-category-preview]") ||
+      target.closest("[data-chart-controls]") ||
       target.closest(".recharts-pie-sector")
     ) {
       return;
@@ -220,11 +257,105 @@ export default function DashboardPage() {
       className="card p-4 sm:p-5"
       onClick={onGastosCardClick}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-lg font-bold">Gastos del mes</h2>
-        <Link href="/transactions" className="text-xs font-bold text-accent">
+      <div data-chart-controls="" className="mb-3 flex justify-center">
+        <div className="inline-flex rounded-full border border-border bg-[color-mix(in_oklab,var(--border)_28%,transparent)] p-0.5">
+          {CHART_SPANS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
+                chartSpan === item.value
+                  ? "bg-accent text-white"
+                  : "muted hover:text-fg"
+              }`}
+              onClick={() => setChartSpan(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-bold">{chartSpanTitle(chartSpan)}</h2>
+        <Link href="/transactions" className="shrink-0 text-xs font-bold text-accent">
           Ver todos
         </Link>
+      </div>
+      <div data-chart-controls="" className="mb-3">
+        {chartSpan === "week" && (
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              className="rounded-full p-1 muted hover:text-fg"
+              aria-label="Semana anterior"
+              onClick={() => setChartAnchor((d) => shiftChartAnchor("week", d, -1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <p className="min-w-0 text-center text-xs font-semibold capitalize">
+              {chartRangeCaption("week", chartRange)}
+            </p>
+            <button
+              type="button"
+              className="rounded-full p-1 muted hover:text-fg"
+              aria-label="Semana siguiente"
+              onClick={() => setChartAnchor((d) => shiftChartAnchor("week", d, 1))}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+        {chartSpan === "month" && (
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className="select py-1.5 text-xs capitalize"
+              value={chartAnchor.getMonth()}
+              aria-label="Mes"
+              onChange={(e) => {
+                const month = Number(e.target.value);
+                setChartAnchor((d) => new Date(d.getFullYear(), month, 1));
+              }}
+            >
+              {MONTH_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select py-1.5 text-xs"
+              value={chartAnchor.getFullYear()}
+              aria-label="Año del mes"
+              onChange={(e) => {
+                const year = Number(e.target.value);
+                setChartAnchor((d) => new Date(year, d.getMonth(), 1));
+              }}
+            >
+              {chartYears.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {chartSpan === "year" && (
+          <select
+            className="select py-1.5 text-xs"
+            value={chartAnchor.getFullYear()}
+            aria-label="Año"
+            onChange={(e) => {
+              const year = Number(e.target.value);
+              setChartAnchor(new Date(year, 0, 1));
+            }}
+          >
+            {chartYears.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {byCategory.length === 0 ? (
         <p className="muted text-sm">Aún no hay gastos en este periodo.</p>
@@ -282,7 +413,7 @@ export default function DashboardPage() {
               <span className="text-[10px] font-semibold uppercase tracking-wide muted">
                 Total
               </span>
-              <span className="text-xs font-bold">{formatMoney(expense, currency)}</span>
+              <span className="text-xs font-bold">{formatMoney(chartExpense, currency)}</span>
             </p>
           </div>
           <ul className="grid grid-cols-1 gap-0.5">

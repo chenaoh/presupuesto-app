@@ -12,6 +12,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     steps: [
       "Elige el espacio (personal o compartido) arriba.",
       "Ajusta el periodo: este mes, mes anterior o un rango.",
+      "En el pastel elige Semana, Mes o Año; en mes puedes cambiar el mes y en año el año.",
       "Toca una categoría o un trozo del gráfico para ver el detalle flotante; pulsa Ver o toca fuera para cerrar.",
       "Al entrar, verás recordatorios de pagos que marcaste para avisar y aún no registraste este mes.",
     ],
