@@ -220,7 +220,7 @@ export default function DashboardPage() {
       className="card p-4 sm:p-5"
       onClick={onGastosCardClick}
     >
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <h2 className="text-lg font-bold">Gastos del mes</h2>
         <Link href="/transactions" className="text-xs font-bold text-accent">
           Ver todos
@@ -229,25 +229,22 @@ export default function DashboardPage() {
       {byCategory.length === 0 ? (
         <p className="muted text-sm">Aún no hay gastos en este periodo.</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
           <div className="relative mx-auto h-44 w-full max-w-[200px]">
             {categoryPreview && (
               <div
                 data-category-preview=""
-                className="absolute inset-x-0 top-0 z-10 mx-auto w-max max-w-[calc(100%-0.5rem)] rounded-md border border-border bg-bg-elevated px-2.5 py-1.5 text-xs shadow-sm"
+                className="absolute inset-x-0 top-0 z-10 mx-auto flex w-max max-w-[calc(100%-0.5rem)] items-center gap-1.5 rounded-md border border-border bg-bg-elevated px-2 py-1 text-[11px] shadow-sm"
               >
-                <p className="whitespace-nowrap">
-                  <span className="font-semibold" style={{ color: categoryPreview.color }}>
-                    {categoryPreview.name}
-                  </span>
-                  <span className="muted"> : </span>
-                  <span className="font-bold tabular-nums">
-                    {formatMoney(categoryPreview.value, currency)}
-                  </span>
-                </p>
+                <span className="max-w-[7.5rem] truncate font-semibold" style={{ color: categoryPreview.color }}>
+                  {categoryPreview.name}
+                </span>
+                <span className="font-bold tabular-nums">
+                  {formatMoney(categoryPreview.value, currency)}
+                </span>
                 <button
                   type="button"
-                  className="mt-1 font-bold text-accent"
+                  className="shrink-0 font-bold text-accent"
                   onClick={() => goToCategory(categoryPreview.id)}
                 >
                   Ver
@@ -288,15 +285,15 @@ export default function DashboardPage() {
               <span className="text-xs font-bold">{formatMoney(expense, currency)}</span>
             </p>
           </div>
-          <ul className="space-y-2">
-            {byCategory.slice(0, 6).map((c) => {
+          <ul className="grid grid-cols-1 gap-0.5">
+            {byCategory.slice(0, 8).map((c) => {
               const selected = previewCategoryId === c.id;
               return (
                 <li key={c.id}>
                   <button
                     type="button"
                     data-category-trigger=""
-                    className={`flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-xs transition ${
+                    className={`flex w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left text-[11px] leading-tight transition ${
                       selected
                         ? "bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] ring-1 ring-[color-mix(in_oklab,var(--accent)_25%,var(--border))]"
                         : "hover:bg-[color-mix(in_oklab,var(--border)_35%,transparent)]"
@@ -304,14 +301,14 @@ export default function DashboardPage() {
                     onClick={() => openCategoryPreview(c.id)}
                   >
                     <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      className="h-2 w-2 shrink-0 rounded-full"
                       style={{ background: c.color }}
                     />
                     <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                    <span className="muted tabular-nums">
+                    <span className="w-7 shrink-0 text-right muted tabular-nums">
                       {Math.round((c.value / totalCat) * 100)}%
                     </span>
-                    <span className="tabular-nums font-semibold">
+                    <span className="shrink-0 tabular-nums font-semibold">
                       {formatMoney(c.value, currency)}
                     </span>
                   </button>
@@ -321,9 +318,9 @@ export default function DashboardPage() {
           </ul>
         </div>
       )}
-      {byCategory.length > 0 && (
-        <p className="muted mt-3 text-[11px]">
-          Toca una categoría o un trozo del gráfico para ver el detalle. Toca fuera para cerrar.
+      {byCategory.length > 8 && (
+        <p className="muted mt-1.5 text-[10px]">
+          +{byCategory.length - 8} categorías más · toca el gráfico para ver detalle
         </p>
       )}
     </section>
