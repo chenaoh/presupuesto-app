@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { copyFile } from "fs/promises";
+import { copyFile, writeFile } from "fs/promises";
 
 const SRC = "public/brand/logo.png";
 
@@ -126,6 +126,25 @@ async function writeTransparent(outPath, size, scale = 0.92) {
     .toFile(outPath);
 }
 
+/** ICO con PNG embebido (lo que piden Chrome y Safari en /favicon.ico). */
+async function writePngIco(pngPath, icoPath) {
+  const png = await sharp(pngPath).resize(32, 32).png().toBuffer();
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2);
+  header.writeUInt16LE(1, 4);
+  const entry = Buffer.alloc(16);
+  entry.writeUInt8(32, 0);
+  entry.writeUInt8(32, 1);
+  entry.writeUInt8(0, 2);
+  entry.writeUInt8(0, 3);
+  entry.writeUInt16LE(1, 4);
+  entry.writeUInt16LE(32, 6);
+  entry.writeUInt32LE(png.length, 8);
+  entry.writeUInt32LE(22, 12);
+  await writeFile(icoPath, Buffer.concat([header, entry, png]));
+}
+
 async function main() {
   const raw = process.argv[2];
   if (raw) {
@@ -139,8 +158,12 @@ async function main() {
   await writeTransparent("public/icons/icon-maskable-192.png", 192);
   await writeTransparent("public/icons/apple-touch-icon.png", 180);
   await writeTransparent("public/icons/favicon-32x32.png", 32);
-  await writeTransparent("src/app/icon.png", 512);
+  await writeTransparent("src/app/icon.png", 192);
   await writeTransparent("src/app/apple-icon.png", 180);
+
+  await writePngIco("public/icons/favicon-32x32.png", "public/favicon.ico");
+  await copyFile("public/favicon.ico", "src/app/favicon.ico");
+  await copyFile("public/icons/favicon-32x32.png", "public/favicon-32x32.png");
 
   await copyFile(SRC, "public/icons/icon-source.png");
 
