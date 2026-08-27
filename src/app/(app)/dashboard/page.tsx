@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { PeriodPicker } from "@/components/PeriodPicker";
 import { RemindersBellButton } from "@/components/RecurringReminders";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatMoney } from "@/lib/format";
@@ -224,7 +223,6 @@ export default function DashboardPage() {
           <ChevronRight size={18} />
         </button>
       </div>
-      <PeriodPicker compact />
     </div>
   );
 
