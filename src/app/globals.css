@@ -348,6 +348,108 @@ html.dark .filter-pill.is-active {
   backdrop-filter: blur(18px);
 }
 
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(720px 420px at 50% 28%, rgba(16, 185, 129, 0.28), transparent 58%),
+    radial-gradient(900px 560px at 18% -10%, rgba(6, 78, 59, 0.7), transparent 55%),
+    linear-gradient(165deg, #022c22 0%, #064e3b 48%, #0b1b2b 100%);
+}
+
+.splash-glow {
+  position: absolute;
+  inset: 28% -20% auto -20%;
+  height: 46%;
+  background: radial-gradient(ellipse at center, rgba(52, 211, 153, 0.22), transparent 70%);
+  pointer-events: none;
+  animation: landing-pulse 5.5s ease-in-out infinite;
+}
+
+.splash-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(48px);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.splash-orb-a {
+  width: 14rem;
+  height: 14rem;
+  left: -3rem;
+  bottom: 12%;
+  background: #10b981;
+  animation: landing-float 7s ease-in-out infinite;
+}
+
+.splash-orb-b {
+  width: 11rem;
+  height: 11rem;
+  right: -2rem;
+  top: 16%;
+  background: #22d3ee;
+  animation: landing-float 8.5s ease-in-out infinite reverse;
+}
+
+.splash-mark {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.5rem;
+}
+
+.splash-logo {
+  width: 10.5rem;
+  height: 10.5rem;
+  object-fit: contain;
+  background: transparent;
+  animation: splash-breathe 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.35));
+}
+
+.splash-logo-ring {
+  display: grid;
+  place-items: center;
+  width: 13.25rem;
+  height: 13.25rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(236, 253, 245, 0.08), transparent 58%);
+  box-shadow:
+    0 0 0 1px rgba(167, 243, 208, 0.28),
+    0 0 48px rgba(16, 185, 129, 0.35);
+}
+
+.splash-title {
+  color: #ecfdf5;
+  font-size: 1.65rem;
+  letter-spacing: 0.02em;
+}
+
+.splash-caption {
+  color: rgba(236, 253, 245, 0.72);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@keyframes splash-breathe {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.045) translateY(-6px);
+  }
+}
+
 .landing {
   position: relative;
   min-height: 100dvh;

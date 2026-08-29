@@ -82,7 +82,8 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     summary: "Lleva el saldo pendiente de créditos u otras deudas del espacio.",
     steps: [
       "Crea una deuda con nombre y monto principal.",
-      "Para registrar un pago necesitas una cuenta: usa Registrar pago.",
+      "Toca una deuda para ver los pagos y movimientos asociados.",
+      "Al registrar un pago eliges fecha, monto y cuenta (necesitas al menos una cuenta).",
       "Gestionar permite editar o eliminar deudas (si no tienen pagos, o se archivan).",
     ],
   },

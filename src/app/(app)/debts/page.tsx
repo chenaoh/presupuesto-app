@@ -1,11 +1,11 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { FormEvent, useMemo, useState } from "react";
+import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { ManageToggle } from "@/components/ManageToggle";
 import { Modal } from "@/components/Modal";
 import { NumericInput } from "@/components/NumericInput";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, todayIso } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import { useRequireAccounts } from "@/lib/useRequireAccounts";
 import type { Debt } from "@/lib/types";
@@ -14,6 +14,7 @@ export default function DebtsPage() {
   const {
     user,
     workspace,
+    data,
     workspaceDebts,
     fundingAccounts,
     workspaceAccounts,
@@ -34,6 +35,8 @@ export default function DebtsPage() {
   const [payDebtId, setPayDebtId] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payAccountId, setPayAccountId] = useState("");
+  const [payDate, setPayDate] = useState(todayIso());
+  const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const currency = user?.currency ?? "COP";
   const accounts = (() => {
@@ -47,6 +50,13 @@ export default function DebtsPage() {
     "Para registrar un pago de deuda primero debes crear al menos una cuenta.",
   );
 
+  const detailPayments = useMemo(() => {
+    if (!detailDebt) return [];
+    return data.transactions
+      .filter((t) => t.debtId === detailDebt.id)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }, [data.transactions, detailDebt]);
+
   function closeForm() {
     setFormOpen(false);
     setEditing(null);
@@ -55,6 +65,23 @@ export default function DebtsPage() {
     setDueDate("");
     setAccountId("");
     setError(null);
+  }
+
+  function closePay() {
+    setPayOpen(false);
+    setPayAmount("");
+    setPayDate(todayIso());
+    setError(null);
+  }
+
+  function openPay(debtId?: string) {
+    guard(() => {
+      setPayDebtId(debtId || payDebtId);
+      setPayDate(todayIso());
+      setPayAmount("");
+      setError(null);
+      setPayOpen(true);
+    });
   }
 
   function onCreate(e: FormEvent) {
@@ -91,7 +118,7 @@ export default function DebtsPage() {
     const err = addTransaction({
       type: "debt_payment",
       amount: Number(payAmount),
-      date: new Date().toISOString().slice(0, 10),
+      date: payDate || todayIso(),
       debtId: payDebtId,
       accountId: payAccountId,
       targetWorkspaceId: debt?.workspaceId,
@@ -147,7 +174,7 @@ export default function DebtsPage() {
         <button
           type="button"
           className="btn btn-ghost text-sm"
-          onClick={() => guard(() => setPayOpen(true))}
+          onClick={() => openPay()}
         >
           Registrar pago
         </button>
@@ -168,13 +195,22 @@ export default function DebtsPage() {
               return (
                 <li key={d.id} className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{itemLabel(d.workspaceId, d.name)}</p>
-                      <p className="muted text-[11px]">
-                        {formatMoney(d.remaining, currency)}
-                        {d.dueDate ? ` · vence ${d.dueDate}` : ""}
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setDetailDebt(d)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{itemLabel(d.workspaceId, d.name)}</p>
+                          <p className="muted text-[11px]">
+                            {formatMoney(d.remaining, currency)}
+                            {d.dueDate ? ` · vence ${d.dueDate}` : ""}
+                          </p>
+                        </div>
+                        <ChevronRight size={16} className="muted shrink-0" aria-hidden />
+                      </div>
+                    </button>
                     {managing && (
                       <div className="flex shrink-0 gap-1">
                         <button
@@ -205,6 +241,69 @@ export default function DebtsPage() {
           </ul>
         )}
       </div>
+
+      <Modal
+        open={!!detailDebt}
+        onClose={() => setDetailDebt(null)}
+        title={detailDebt ? itemLabel(detailDebt.workspaceId, detailDebt.name) : "Deuda"}
+        variant="sheet"
+        hideFooter
+      >
+        {detailDebt && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-2xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-3 py-2.5">
+                <p className="muted text-[11px]">Pendiente</p>
+                <p className="text-sm font-bold tabular-nums text-expense">
+                  {formatMoney(detailDebt.remaining, currency)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[color-mix(in_oklab,var(--border)_28%,transparent)] px-3 py-2.5">
+                <p className="muted text-[11px]">Pagado</p>
+                <p className="text-sm font-bold tabular-nums text-income">
+                  {formatMoney(Math.max(0, detailDebt.principal - detailDebt.remaining), currency)}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary w-full text-sm"
+              onClick={() => {
+                const id = detailDebt.id;
+                setDetailDebt(null);
+                openPay(id);
+              }}
+            >
+              Registrar pago
+            </button>
+            {detailPayments.length === 0 ? (
+              <p className="muted text-sm">Aún no hay movimientos asociados a esta deuda.</p>
+            ) : (
+              <ul className="divide-y divide-border rounded-md border border-border">
+                {detailPayments.map((t) => {
+                  const acc = t.accountId
+                    ? data.accounts.find((a) => a.id === t.accountId)
+                    : undefined;
+                  return (
+                    <li key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{t.note.trim() || "Pago de deuda"}</p>
+                        <p className="muted truncate text-[11px]">
+                          {formatDate(t.date)}
+                          {acc ? ` · ${itemLabel(acc.workspaceId, acc.name)}` : ""}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-semibold tabular-nums text-expense">
+                        -{formatMoney(t.amount, currency)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <Modal open={formOpen} onClose={closeForm} title={editing ? "Editar deuda" : "Nueva deuda"}>
         <form onSubmit={onCreate} className="grid gap-2 sm:grid-cols-2">
@@ -247,7 +346,7 @@ export default function DebtsPage() {
         </form>
       </Modal>
 
-      <Modal open={payOpen} onClose={() => setPayOpen(false)} title="Registrar pago">
+      <Modal open={payOpen} onClose={closePay} title="Registrar pago">
         <form onSubmit={onPay} className="grid gap-2">
           <div>
             <label className="label">Deuda a pagar</label>
@@ -259,6 +358,16 @@ export default function DebtsPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="label">Fecha del pago</label>
+            <input
+              className="input"
+              type="date"
+              value={payDate}
+              onChange={(e) => setPayDate(e.target.value)}
+              required
+            />
           </div>
           <div>
             <label className="label">Monto del pago</label>

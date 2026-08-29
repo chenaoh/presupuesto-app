@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PasswordField } from "@/components/PasswordField";
+import { SplashScreen } from "@/components/SplashScreen";
 import { useApp } from "@/lib/store";
 
 export default function LoginPage() {
@@ -32,6 +33,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!ready) {
+    return <SplashScreen />;
   }
 
   return (

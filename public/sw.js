@@ -1,4 +1,4 @@
-const CACHE = "presupuesto-v6";
+const CACHE = "presupuesto-v7";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { InstallPwaButton } from "@/components/InstallPwaButton";
+import { SplashScreen } from "@/components/SplashScreen";
 import { useApp } from "@/lib/store";
 
 export default function HomePage() {
@@ -17,19 +18,11 @@ export default function HomePage() {
   }, [ready, user, router]);
 
   if (!ready) {
-    return (
-      <div className="min-h-screen grid place-items-center muted">
-        Cargando…
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (user) {
-    return (
-      <div className="min-h-screen grid place-items-center muted">
-        Entrando…
-      </div>
-    );
+    return <SplashScreen label="Entrando…" />;
   }
 
   return (

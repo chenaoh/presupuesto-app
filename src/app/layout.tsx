@@ -27,15 +27,15 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Presupuesto",
   },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#064E3B" },
-    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+    { media: "(prefers-color-scheme: light)", color: "#022c22" },
+    { media: "(prefers-color-scheme: dark)", color: "#022c22" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -46,6 +46,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning className={`h-full ${outfit.variable}`}>
       <body className={`${outfit.className} min-h-full antialiased`}>
+        <div id="boot-splash" className="splash" role="status" aria-live="polite" aria-label="Cargando">
+          <div className="splash-glow" aria-hidden />
+          <div className="splash-orb splash-orb-a" aria-hidden />
+          <div className="splash-orb splash-orb-b" aria-hidden />
+          <div className="splash-mark">
+            <div className="splash-logo-ring">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/logo.png" alt="" width={168} height={168} className="splash-logo" />
+            </div>
+            <p className="brand splash-title">Presupuesto</p>
+            <p className="splash-caption">Cargando…</p>
+          </div>
+        </div>
         <AppProvider>
           <Providers>
             <ServiceWorkerRegister />
