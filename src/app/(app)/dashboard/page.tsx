@@ -87,9 +87,17 @@ export default function DashboardPage() {
   const compareTxs = filterTxs(allWsTxs, compareRange);
   const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const debtPayment = txs
+    .filter((t) => t.type === "debt_payment")
+    .reduce((s, t) => s + t.amount, 0);
+  const outflow = expense + debtPayment;
   const chartExpense = chartTxs
     .filter((t) => t.type === "expense")
     .reduce((s, t) => s + t.amount, 0);
+  const chartDebtPayment = chartTxs
+    .filter((t) => t.type === "debt_payment")
+    .reduce((s, t) => s + t.amount, 0);
+  const chartOutflow = chartExpense + chartDebtPayment;
   const prevExpense = compareTxs
     .filter((t) => t.type === "expense")
     .reduce((s, t) => s + t.amount, 0);
@@ -246,6 +254,18 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+      {debtPayment > 0 && (
+        <>
+          <Link href="/transactions" className="card px-3 py-2.5">
+            <p className="muted text-[11px]">Pagos de deuda</p>
+            <p className="text-sm font-bold text-expense">{formatMoney(debtPayment, currency)}</p>
+          </Link>
+          <div className="card px-3 py-2.5">
+            <p className="muted text-[11px]">Salidas (gastos + deudas)</p>
+            <p className="text-sm font-bold tabular-nums">{formatMoney(outflow, currency)}</p>
+          </div>
+        </>
+      )}
     </section>
   );
 
@@ -356,7 +376,11 @@ export default function DashboardPage() {
         )}
       </div>
       {byCategory.length === 0 ? (
-        <p className="muted text-sm">Aún no hay gastos en este periodo.</p>
+        <p className="muted text-sm">
+          {chartDebtPayment > 0
+            ? "No hay gastos por categoría en este periodo. Los pagos de deuda están abajo."
+            : "Aún no hay gastos en este periodo."}
+        </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_1fr] sm:items-center">
           <div className="relative mx-auto h-44 w-full max-w-[200px]">
@@ -409,7 +433,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
             <p className="pointer-events-none absolute inset-0 grid place-content-center text-center">
               <span className="text-[10px] font-semibold uppercase tracking-wide muted">
-                Total
+                Gastos
               </span>
               <span className="text-xs font-bold">{formatMoney(chartExpense, currency)}</span>
             </p>
@@ -450,6 +474,13 @@ export default function DashboardPage() {
       {byCategory.length > 8 && (
         <p className="muted mt-1.5 text-[10px]">
           +{byCategory.length - 8} categorías más · toca el gráfico para ver detalle
+        </p>
+      )}
+      {chartDebtPayment > 0 && (
+        <p className="muted mt-2 text-xs">
+          Pagos de deuda {formatMoney(chartDebtPayment, currency)}
+          {" · "}
+          Salidas {formatMoney(chartOutflow, currency)}
         </p>
       )}
     </section>

@@ -11,12 +11,12 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     summary: "Resumen del espacio y periodo activos: gastos por categoría, consejos y bolsillos.",
     steps: [
       "Elige el espacio (personal o compartido) arriba.",
-      "Ajusta el mes con las flechas de Inicio; ingresos, gastos e insights usan ese mes.",
+      "Ajusta el mes con las flechas de Inicio; ingresos, gastos, pagos de deuda e insights usan ese mes.",
       "En el pastel elige Semana, Mes o Año; en mes puedes cambiar el mes y en año el año.",
       "Toca una categoría o un trozo del gráfico para ver el detalle flotante; pulsa Ver o toca fuera para cerrar.",
       "Al entrar, verás recordatorios de pagos que marcaste para avisar y aún no registraste este mes.",
     ],
-    tip: "El saldo total está en Cuentas. En Inicio ves ingresos y gastos del periodo.",
+    tip: "El saldo total está en Cuentas. En Inicio ves ingresos, gastos y, si hay, pagos de deuda y salidas del periodo.",
   },
   "/transactions": {
     title: "Movimientos",
