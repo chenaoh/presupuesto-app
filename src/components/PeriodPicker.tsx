@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { Modal } from "@/components/Modal";
-import { usePeriod, type PeriodMode } from "@/lib/period";
+import { usePeriod, type PeriodMode, type PeriodScope } from "@/lib/period";
 
 const MODES: Array<{ value: PeriodMode; label: string }> = [
   { value: "current", label: "Este mes" },
@@ -11,12 +11,12 @@ const MODES: Array<{ value: PeriodMode; label: string }> = [
   { value: "custom", label: "Rango" },
 ];
 
-export function PeriodPicker({ compact }: { compact?: boolean }) {
-  const { mode, label } = usePeriod();
+export function PeriodPicker({ compact, scope }: { compact?: boolean; scope: PeriodScope }) {
+  const { mode, label } = usePeriod(scope);
   const [open, setOpen] = useState(false);
 
   if (!compact) {
-    return <PeriodFields />;
+    return <PeriodFields scope={scope} />;
   }
 
   const chip =
@@ -40,15 +40,15 @@ export function PeriodPicker({ compact }: { compact?: boolean }) {
         variant="sheet"
         hideFooter
       >
-        <PeriodFields onApply={() => setOpen(false)} />
+        <PeriodFields scope={scope} onApply={() => setOpen(false)} />
         <p className="muted mt-2 text-[11px] capitalize">{label}</p>
       </Modal>
     </>
   );
 }
 
-function PeriodFields({ onApply }: { onApply?: () => void }) {
-  const { mode, customFrom, customTo, setMode, setCustomRange } = usePeriod();
+function PeriodFields({ scope, onApply }: { scope: PeriodScope; onApply?: () => void }) {
+  const { mode, customFrom, customTo, setMode, setCustomRange } = usePeriod(scope);
 
   return (
     <div className="space-y-3">

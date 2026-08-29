@@ -13,17 +13,24 @@ import { monthLabel } from "./format";
 
 export type PeriodMode = "current" | "previous" | "custom";
 
+export type PeriodScope = "dashboard" | "transactions" | "accounts" | "consejos";
+
 export type DateRange = {
   from: string;
   to: string;
 };
 
-type PeriodContextValue = {
+type PeriodState = {
+  mode: PeriodMode;
+  customFrom: string;
+  customTo: string;
+};
+
+type PeriodScopeValue = {
   mode: PeriodMode;
   customFrom: string;
   customTo: string;
   range: DateRange;
-  /** Rango del periodo anterior (misma duración), para comparar tendencias. */
   compareRange: DateRange;
   label: string;
   monthTitle: string;
@@ -32,7 +39,20 @@ type PeriodContextValue = {
   shiftMonth: (delta: number) => void;
 };
 
-const STORAGE_KEY = "presupuesto-app:period";
+type PeriodContextValue = {
+  scopes: Record<PeriodScope, PeriodScopeValue>;
+};
+
+const LEGACY_STORAGE_KEY = "presupuesto-app:period";
+
+const PERIOD_SCOPES: PeriodScope[] = ["dashboard", "transactions", "accounts", "consejos"];
+
+const DEFAULT_PERIOD: PeriodState = {
+  mode: "current",
+  customFrom: "",
+  customTo: "",
+};
+
 const PeriodContext = createContext<PeriodContextValue | null>(null);
 
 function pad(n: number) {
@@ -167,26 +187,22 @@ export function chartRangeCaption(span: ChartSpan, range: DateRange, locale = "e
   return `${fromText} – ${toText}`;
 }
 
+function createDefaultPeriods(): Record<PeriodScope, PeriodState> {
+  return {
+    dashboard: { ...DEFAULT_PERIOD },
+    transactions: { ...DEFAULT_PERIOD },
+    accounts: { ...DEFAULT_PERIOD },
+    consejos: { ...DEFAULT_PERIOD },
+  };
+}
+
 export function PeriodProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<PeriodMode>("current");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [periods, setPeriods] = useState<Record<PeriodScope, PeriodState>>(createDefaultPeriods);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        mode?: PeriodMode;
-        customFrom?: string;
-        customTo?: string;
-      };
-      if (parsed.mode === "current" || parsed.mode === "previous" || parsed.mode === "custom") {
-        setModeState(parsed.mode);
-      }
-      if (parsed.customFrom) setCustomFrom(parsed.customFrom);
-      if (parsed.customTo) setCustomTo(parsed.customTo);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch {
       /* ignore */
     }
@@ -203,90 +219,84 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ mode, customFrom, customTo }),
-    );
-  }, [mode, customFrom, customTo]);
+  const updateScope = useCallback((scope: PeriodScope, patch: Partial<PeriodState>) => {
+    setPeriods((prev) => ({
+      ...prev,
+      [scope]: { ...prev[scope], ...patch },
+    }));
+  }, []);
 
-  const range = useMemo(
-    () => resolvePeriodRange(mode, customFrom, customTo, new Date()),
+  const scopes = useMemo(() => {
+    const now = new Date();
+    const result = {} as Record<PeriodScope, PeriodScopeValue>;
+
+    for (const scope of PERIOD_SCOPES) {
+      const { mode, customFrom, customTo } = periods[scope];
+      const range = resolvePeriodRange(mode, customFrom, customTo, now);
+      const compareRange = shiftRangeBack(range);
+      const label = periodLabel(mode, range);
+      const { year, month } = rangeAnchorMonth(range);
+      const monthTitle = monthLabel(year, month);
+
+      const setMode = (next: PeriodMode) => {
+        if (next === "custom") {
+          const r = resolvePeriodRange("current", "", "", now);
+          updateScope(scope, {
+            mode: next,
+            customFrom: customFrom || r.from,
+            customTo: customTo || r.to,
+          });
+          return;
+        }
+        updateScope(scope, { mode: next });
+      };
+
+      const setCustomRange = (from: string, to: string) => {
+        updateScope(scope, { mode: "custom", customFrom: from, customTo: to });
+      };
+
+      const shiftMonth = (delta: number) => {
+        const { year: y, month: m } = rangeAnchorMonth(range);
+        const d = new Date(y, m - 1 + delta, 1);
+        const ny = d.getFullYear();
+        const nm = d.getMonth() + 1;
+        if (ny === now.getFullYear() && nm === now.getMonth() + 1) {
+          updateScope(scope, { mode: "current", customFrom: "", customTo: "" });
+          return;
+        }
+        updateScope(scope, {
+          mode: "custom",
+          customFrom: startOfMonth(ny, nm),
+          customTo: endOfMonth(ny, nm),
+        });
+      };
+
+      result[scope] = {
+        mode,
+        customFrom,
+        customTo,
+        range,
+        compareRange,
+        label,
+        monthTitle,
+        setMode,
+        setCustomRange,
+        shiftMonth,
+      };
+    }
+
+    return result;
     // tick fuerza recompute cuando el mes cambia con mode=current
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, customFrom, customTo, tick],
-  );
+  }, [periods, tick, updateScope]);
 
-  const compareRange = useMemo(() => shiftRangeBack(range), [range]);
-  const label = useMemo(() => periodLabel(mode, range), [mode, range]);
-
-  const setMode = useCallback((next: PeriodMode) => {
-    setModeState(next);
-    if (next === "custom") {
-      const r = resolvePeriodRange("current", "", "");
-      setCustomFrom((prev) => prev || r.from);
-      setCustomTo((prev) => prev || r.to);
-    }
-  }, []);
-
-  const setCustomRange = useCallback((from: string, to: string) => {
-    setCustomFrom(from);
-    setCustomTo(to);
-    setModeState("custom");
-  }, []);
-
-  const shiftMonth = useCallback((delta: number) => {
-    const { year, month } = rangeAnchorMonth(range);
-    const d = new Date(year, month - 1 + delta, 1);
-    const y = d.getFullYear();
-    const m = d.getMonth() + 1;
-    const now = new Date();
-    if (y === now.getFullYear() && m === now.getMonth() + 1) {
-      setModeState("current");
-      return;
-    }
-    setCustomFrom(startOfMonth(y, m));
-    setCustomTo(endOfMonth(y, m));
-    setModeState("custom");
-  }, [range]);
-
-  const monthTitle = useMemo(() => {
-    const { year, month } = rangeAnchorMonth(range);
-    return monthLabel(year, month);
-  }, [range]);
-
-  const value = useMemo(
-    () => ({
-      mode,
-      customFrom,
-      customTo,
-      range,
-      compareRange,
-      label,
-      monthTitle,
-      setMode,
-      setCustomRange,
-      shiftMonth,
-    }),
-    [
-      mode,
-      customFrom,
-      customTo,
-      range,
-      compareRange,
-      label,
-      monthTitle,
-      setMode,
-      setCustomRange,
-      shiftMonth,
-    ],
-  );
+  const value = useMemo(() => ({ scopes }), [scopes]);
 
   return <PeriodContext.Provider value={value}>{children}</PeriodContext.Provider>;
 }
 
-export function usePeriod() {
+export function usePeriod(scope: PeriodScope) {
   const ctx = useContext(PeriodContext);
   if (!ctx) throw new Error("usePeriod debe usarse dentro de PeriodProvider");
-  return ctx;
+  return ctx.scopes[scope];
 }

@@ -52,7 +52,7 @@ export default function DashboardPage() {
     workspaceCategories,
     workspaceTransactions,
   } = useApp();
-  const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod();
+  const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod("dashboard");
   const [previewCategoryId, setPreviewCategoryId] = useState<string | null>(null);
   const [chartSpan, setChartSpan] = useState<ChartSpan>("month");
   const [chartAnchor, setChartAnchor] = useState(() => new Date());

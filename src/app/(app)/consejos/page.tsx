@@ -23,7 +23,7 @@ export default function ConsejosPage() {
     workspaceBudgets,
     workspaceCategories,
   } = useApp();
-  const { range, compareRange, label } = usePeriod();
+  const { range, compareRange, label } = usePeriod("consejos");
   const currency = user?.currency ?? "COP";
   const allWsTxs = workspaceTransactions();
   const txs = filterTxs(allWsTxs, range);
@@ -56,7 +56,7 @@ export default function ConsejosPage() {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <PeriodPicker compact />
+        <PeriodPicker compact scope="consejos" />
         <p className="muted text-[11px] capitalize">{label}</p>
       </div>
 

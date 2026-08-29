@@ -83,7 +83,7 @@ export default function TransactionsPage() {
   const { guard, dialog } = useRequireAccounts(
     "Para registrar un movimiento primero debes crear al menos una cuenta.",
   );
-  const { range, label: periodLabelText } = usePeriod();
+  const { range, label: periodLabelText } = usePeriod("transactions");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -507,7 +507,7 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <PeriodPicker compact />
+        <PeriodPicker compact scope="transactions" />
         <p className="muted text-[11px] capitalize">{periodLabelText}</p>
       </div>
 

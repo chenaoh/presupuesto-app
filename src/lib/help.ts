@@ -11,7 +11,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     summary: "Resumen del espacio y periodo activos: gastos por categoría, consejos y bolsillos.",
     steps: [
       "Elige el espacio (personal o compartido) arriba.",
-      "Ajusta el mes con las flechas de Inicio; ingresos, gastos, pagos de deuda e insights usan ese mes.",
+      "Ajusta el mes con las flechas de Inicio; ingresos, gastos y pagos de deuda de Inicio usan solo ese mes (independiente de Movimientos).",
       "En el pastel elige Semana, Mes o Año; en mes puedes cambiar el mes y en año el año.",
       "Toca una categoría o un trozo del gráfico para ver el detalle flotante; pulsa Ver o toca fuera para cerrar.",
       "Al entrar, verás recordatorios de pagos que marcaste para avisar y aún no registraste este mes.",
@@ -22,7 +22,7 @@ const HELP_BY_PATH: Record<string, HelpTopic> = {
     title: "Movimientos",
     summary: "Registra ingresos, gastos, transferencias y sigue el flujo del dinero por periodo.",
     steps: [
-      "Elige el periodo: este mes, mes anterior o un rango de fechas.",
+      "Elige el periodo en Movimientos, Cuentas o Consejos; cada pantalla guarda su propio rango solo mientras usas la app.",
       "En tu perfil personal ves movimientos personales y de espacios a los que perteneces (categoría con el nombre del espacio).",
       "En un espacio compartido ves los movimientos de todos los miembros.",
       "En la lista ves descripción, categoría y fecha; toca un movimiento para ver el detalle.",

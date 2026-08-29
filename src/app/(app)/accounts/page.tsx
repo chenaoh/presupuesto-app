@@ -35,7 +35,7 @@ export default function AccountsPage() {
     workspaceBudgetFunded,
     workspaceBudgetSpent,
   } = useApp();
-  const { range, label: periodLabelText } = usePeriod();
+  const { range, label: periodLabelText } = usePeriod("accounts");
 
   const institutions = data.institutions.filter((i) => i.workspaceId === workspace?.id);
   const [name, setName] = useState("");
@@ -255,7 +255,7 @@ export default function AccountsPage() {
         <p className="text-xs font-semibold uppercase tracking-wide muted">
           Periodo del historial
         </p>
-        <PeriodPicker compact />
+        <PeriodPicker compact scope="accounts" />
         <p className="muted text-[11px] capitalize">{periodLabelText}</p>
       </section>
 
