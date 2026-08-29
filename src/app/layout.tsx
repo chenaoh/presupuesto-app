@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import { AppProvider } from "@/lib/store";
+import { BootSplash } from "@/components/SplashScreen";
 import { Providers } from "@/components/Providers";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
@@ -46,20 +47,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning className={`h-full ${outfit.variable}`}>
       <body className={`${outfit.className} min-h-full antialiased`}>
-        <div id="boot-splash" className="splash" role="status" aria-live="polite" aria-label="Cargando">
-          <div className="splash-glow" aria-hidden />
-          <div className="splash-orb splash-orb-a" aria-hidden />
-          <div className="splash-orb splash-orb-b" aria-hidden />
-          <div className="splash-mark">
-            <div className="splash-logo-ring">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/logo.png" alt="" width={168} height={168} className="splash-logo" />
-            </div>
-            <p className="brand splash-title">Presupuesto</p>
-            <p className="splash-caption">Cargando…</p>
-          </div>
-        </div>
         <AppProvider>
+          <BootSplash />
           <Providers>
             <ServiceWorkerRegister />
             {children}

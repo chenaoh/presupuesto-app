@@ -5,13 +5,8 @@ import { useEffect, type ReactNode } from "react";
 import { useApp } from "@/lib/store";
 
 function AccentSync({ children }: { children: ReactNode }) {
-  const { user, workspace, ready } = useApp();
+  const { user, workspace } = useApp();
   const { setTheme } = useTheme();
-
-  useEffect(() => {
-    if (!ready) return;
-    document.getElementById("boot-splash")?.remove();
-  }, [ready]);
 
   useEffect(() => {
     const root = document.documentElement;

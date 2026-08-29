@@ -1,5 +1,14 @@
 "use client";
 
+import { useApp } from "@/lib/store";
+
+/** First-paint splash owned by React (do not remove this node from the DOM). */
+export function BootSplash() {
+  const { ready } = useApp();
+  if (ready) return null;
+  return <SplashScreen />;
+}
+
 export function SplashScreen({ label = "Cargando…" }: { label?: string }) {
   return (
     <div className="splash" role="status" aria-live="polite" aria-label={label}>
