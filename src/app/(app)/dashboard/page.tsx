@@ -8,7 +8,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { RemindersBellButton } from "@/components/RecurringReminders";
 import { UserAvatar } from "@/components/UserAvatar";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, monthLabel } from "@/lib/format";
 import { buildTips, filterTxs } from "@/lib/insights";
 import {
   chartRangeCaption,
@@ -16,7 +16,7 @@ import {
   chartSpanTitle,
   rangeAnchorMonth,
   shiftChartAnchor,
-  usePeriod,
+  shiftRangeBack,
   type ChartSpan,
 } from "@/lib/period";
 import { useApp } from "@/lib/store";
@@ -52,17 +52,46 @@ export default function DashboardPage() {
     workspaceCategories,
     workspaceTransactions,
   } = useApp();
-  const { range, compareRange, label, monthTitle, shiftMonth } = usePeriod("dashboard");
   const [previewCategoryId, setPreviewCategoryId] = useState<string | null>(null);
   const [chartSpan, setChartSpan] = useState<ChartSpan>("month");
   const [chartAnchor, setChartAnchor] = useState(() => new Date());
   const gastosCardRef = useRef<HTMLElement>(null);
 
-  const chartRange = chartRangeFor(chartSpan, chartAnchor);
+  const activeRange = chartRangeFor(chartSpan, chartAnchor);
+  const compareRange = shiftRangeBack(activeRange);
+  const { year, month } = rangeAnchorMonth(activeRange);
+  const periodTitle =
+    chartSpan === "year"
+      ? String(year)
+      : chartSpan === "week"
+        ? chartRangeCaption("week", activeRange)
+        : monthLabel(year, month);
+  const periodSubtitle = (() => {
+    const now = new Date();
+    if (chartSpan !== "month") return chartSpanTitle(chartSpan).toLowerCase();
+    if (year === now.getFullYear() && month === now.getMonth() + 1) {
+      return `este mes · ${monthLabel(year, month)}`;
+    }
+    return monthLabel(year, month);
+  })();
+
+  function shiftActivePeriod(delta: number) {
+    setChartAnchor((d) => shiftChartAnchor(chartSpan, d, delta));
+  }
+
+  function setChartMonth(nextMonth: number) {
+    setChartAnchor((d) => new Date(d.getFullYear(), nextMonth, 1));
+  }
+
+  function setChartYear(nextYear: number) {
+    setChartAnchor((d) =>
+      chartSpan === "year" ? new Date(nextYear, 0, 1) : new Date(nextYear, d.getMonth(), 1),
+    );
+  }
 
   useEffect(() => {
     setPreviewCategoryId(null);
-  }, [workspace?.id, range.from, range.to, chartRange.from, chartRange.to]);
+  }, [workspace?.id, activeRange.from, activeRange.to]);
 
   useEffect(() => {
     if (!previewCategoryId) return;
@@ -82,8 +111,7 @@ export default function DashboardPage() {
 
   const currency = user?.currency ?? "COP";
   const allWsTxs = workspaceTransactions();
-  const txs = filterTxs(allWsTxs, range);
-  const chartTxs = filterTxs(allWsTxs, chartRange);
+  const txs = filterTxs(allWsTxs, activeRange);
   const compareTxs = filterTxs(allWsTxs, compareRange);
   const income = txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = txs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
@@ -91,19 +119,11 @@ export default function DashboardPage() {
     .filter((t) => t.type === "debt_payment")
     .reduce((s, t) => s + t.amount, 0);
   const outflow = expense + debtPayment;
-  const chartExpense = chartTxs
-    .filter((t) => t.type === "expense")
-    .reduce((s, t) => s + t.amount, 0);
-  const chartDebtPayment = chartTxs
-    .filter((t) => t.type === "debt_payment")
-    .reduce((s, t) => s + t.amount, 0);
-  const chartOutflow = chartExpense + chartDebtPayment;
   const prevExpense = compareTxs
     .filter((t) => t.type === "expense")
     .reduce((s, t) => s + t.amount, 0);
   const expenseDelta =
     prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 100) : null;
-  const { year, month } = rangeAnchorMonth(range);
   const categories = workspaceCategories("expense");
   const budgets = workspaceBudgets(year, month);
 
@@ -111,7 +131,7 @@ export default function DashboardPage() {
     .map((c) => ({
       id: c.id,
       name: c.name,
-      value: chartTxs
+      value: txs
         .filter((t) => t.type === "expense" && t.categoryId === c.id)
         .reduce((s, t) => s + t.amount, 0),
       color: c.color,
@@ -125,7 +145,7 @@ export default function DashboardPage() {
 
   const tips = buildTips({
     currency,
-    range,
+    range: activeRange,
     compareRange,
     transactions: txs,
     compareTransactions: compareTxs,
@@ -198,7 +218,7 @@ export default function DashboardPage() {
           ))}
         </select>
         <p className="muted mt-1 hidden text-sm font-semibold capitalize md:block">
-          {workspace?.name} · {label}
+          {workspace?.name} · {periodSubtitle}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -216,17 +236,17 @@ export default function DashboardPage() {
         <button
           type="button"
           className="rounded-full p-1 muted hover:text-fg"
-          aria-label="Mes anterior"
-          onClick={() => shiftMonth(-1)}
+          aria-label="Periodo anterior"
+          onClick={() => shiftActivePeriod(-1)}
         >
           <ChevronLeft size={18} />
         </button>
-        <p className="min-w-[9rem] text-center text-sm font-semibold capitalize">{monthTitle}</p>
+        <p className="min-w-[9rem] text-center text-sm font-semibold capitalize">{periodTitle}</p>
         <button
           type="button"
           className="rounded-full p-1 muted hover:text-fg"
-          aria-label="Mes siguiente"
-          onClick={() => shiftMonth(1)}
+          aria-label="Periodo siguiente"
+          onClick={() => shiftActivePeriod(1)}
         >
           <ChevronRight size={18} />
         </button>
@@ -306,18 +326,18 @@ export default function DashboardPage() {
               type="button"
               className="rounded-full p-1 muted hover:text-fg"
               aria-label="Semana anterior"
-              onClick={() => setChartAnchor((d) => shiftChartAnchor("week", d, -1))}
+              onClick={() => shiftActivePeriod(-1)}
             >
               <ChevronLeft size={18} />
             </button>
             <p className="min-w-0 text-center text-xs font-semibold capitalize">
-              {chartRangeCaption("week", chartRange)}
+              {chartRangeCaption("week", activeRange)}
             </p>
             <button
               type="button"
               className="rounded-full p-1 muted hover:text-fg"
               aria-label="Semana siguiente"
-              onClick={() => setChartAnchor((d) => shiftChartAnchor("week", d, 1))}
+              onClick={() => shiftActivePeriod(1)}
             >
               <ChevronRight size={18} />
             </button>
@@ -329,10 +349,7 @@ export default function DashboardPage() {
               className="select py-1.5 text-xs capitalize"
               value={chartAnchor.getMonth()}
               aria-label="Mes"
-              onChange={(e) => {
-                const month = Number(e.target.value);
-                setChartAnchor((d) => new Date(d.getFullYear(), month, 1));
-              }}
+              onChange={(e) => setChartMonth(Number(e.target.value))}
             >
               {MONTH_OPTIONS.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -344,10 +361,7 @@ export default function DashboardPage() {
               className="select py-1.5 text-xs"
               value={chartAnchor.getFullYear()}
               aria-label="Año del mes"
-              onChange={(e) => {
-                const year = Number(e.target.value);
-                setChartAnchor((d) => new Date(year, d.getMonth(), 1));
-              }}
+              onChange={(e) => setChartYear(Number(e.target.value))}
             >
               {chartYears.map((y) => (
                 <option key={y} value={y}>
@@ -362,10 +376,7 @@ export default function DashboardPage() {
             className="select py-1.5 text-xs"
             value={chartAnchor.getFullYear()}
             aria-label="Año"
-            onChange={(e) => {
-              const year = Number(e.target.value);
-              setChartAnchor(new Date(year, 0, 1));
-            }}
+            onChange={(e) => setChartYear(Number(e.target.value))}
           >
             {chartYears.map((y) => (
               <option key={y} value={y}>
@@ -377,7 +388,7 @@ export default function DashboardPage() {
       </div>
       {byCategory.length === 0 ? (
         <p className="muted text-sm">
-          {chartDebtPayment > 0
+          {debtPayment > 0
             ? "No hay gastos por categoría en este periodo. Los pagos de deuda están abajo."
             : "Aún no hay gastos en este periodo."}
         </p>
@@ -435,7 +446,7 @@ export default function DashboardPage() {
               <span className="text-[10px] font-semibold uppercase tracking-wide muted">
                 Gastos
               </span>
-              <span className="text-xs font-bold">{formatMoney(chartExpense, currency)}</span>
+              <span className="text-xs font-bold">{formatMoney(expense, currency)}</span>
             </p>
           </div>
           <ul className="grid grid-cols-1 gap-0.5">
@@ -476,11 +487,11 @@ export default function DashboardPage() {
           +{byCategory.length - 8} categorías más · toca el gráfico para ver detalle
         </p>
       )}
-      {chartDebtPayment > 0 && (
+      {debtPayment > 0 && (
         <p className="muted mt-2 text-xs">
-          Pagos de deuda {formatMoney(chartDebtPayment, currency)}
+          Pagos de deuda {formatMoney(debtPayment, currency)}
           {" · "}
-          Salidas {formatMoney(chartOutflow, currency)}
+          Salidas {formatMoney(outflow, currency)}
         </p>
       )}
     </section>
